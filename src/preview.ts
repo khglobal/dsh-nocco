@@ -65,6 +65,12 @@ export function createPreviewManager(options: {
   const closed = (entry: Entry): Promise<void> =>
     entry.exited ? Promise.resolve() : new Promise((done) => entry.child.once('close', () => done()));
 
+  // Dev servers run in their own process groups, so they would outlive the
+  // host if it exits without disposing the plugin. End them on the way out.
+  process.once('exit', () => {
+    for (const entry of entries.values()) kill(entry.child);
+  });
+
   async function launch(directory: string): Promise<Entry> {
     const port = await freePort();
     const { file, args } = command(directory, port);

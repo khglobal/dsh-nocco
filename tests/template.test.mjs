@@ -14,7 +14,7 @@ function files(root, base = '') {
 const all = files(dir);
 
 test('template has the files the skill names', () => {
-  for (const file of ['package.json', 'index.html', 'vite.config.js', 'gitignore', '.env.example', 'LICENSE',
+  for (const file of ['package.json', 'index.html', 'vite.config.js', 'gitignore', '.env.example', 'LICENSE', 'pnpm-workspace.yaml',
     'src/main.js', 'src/App.vue', 'src/lib/data.js', 'src/lib/supabase.js', 'src/pages/index.vue', 'src/assets/app.css']) {
     assert.ok(all.includes(file), file);
   }
