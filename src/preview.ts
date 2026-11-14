@@ -42,9 +42,15 @@ interface Entry {
 const OUTPUT_LINES = 60;
 const ATTEMPTS = 3;
 const SYNC_DEBOUNCE_MS = 400;
-// shadcn-nuxt prints one of these per component on every start. They are
-// harmless and would otherwise fill the whole output window.
-const NOISE = /^\s*WARN\s+Overriding \S+ component\./;
+// shadcn-nuxt registers each component from both its folder's index file and
+// its .vue file, and Nuxt prints warnings for every one on every start. They
+// are harmless and would otherwise fill the whole output window.
+const NOISE = [
+  /WARN\s+Overriding \S+ component\./,
+  /WARN\s+Two component files resolving to the same name/,
+  /^\s*-\s+\S*[\\/]components[\\/]ui[\\/]\S+$/,
+];
+const isNoise = (line: string): boolean => NOISE.some((pattern) => pattern.test(line));
 
 const nuxtCommand = (directory: string, port: number) => ({
   file: join(directory, 'node_modules', '.bin', process.platform === 'win32' ? 'nuxi.cmd' : 'nuxi'),
@@ -95,7 +101,7 @@ export function createPreviewManager(options: {
   const closed = (entry: Entry): Promise<void> =>
     entry.exited ? Promise.resolve() : new Promise((done) => entry.child.once('close', () => done()));
   const append = (entry: Entry, lines: readonly string[]): void => {
-    entry.output.push(...lines.filter((line) => line.trim() && !NOISE.test(line)));
+    entry.output.push(...lines.filter((line) => line.trim() && !isNoise(line)));
     entry.output.splice(0, Math.max(0, entry.output.length - OUTPUT_LINES));
   };
   const runSync = async (directory: string): Promise<string[]> => {

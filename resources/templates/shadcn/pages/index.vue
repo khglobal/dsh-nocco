@@ -22,8 +22,7 @@ onMounted(() => { mounted.value = true; });
 
     <!-- Fine noise/grain overlay -->
     <div
-      class="pointer-events-none absolute inset-0 opacity-[0.035] dark:opacity-[0.05] mix-blend-overlay"
-      style="background-image: url('data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 stitchTiles=%22stitch%22/%3E%3CfeColorMatrix values=%220 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0%22/%3E%3C/filter%3E%3Crect width=%22200%22 height=%22200%22 filter=%22url(%23n)%22/%3E%3C/svg%3E')"
+      class="start-grain pointer-events-none absolute inset-0 opacity-[0.035] dark:opacity-[0.05] mix-blend-overlay"
     />
 
     <!-- Top bar -->
@@ -103,6 +102,10 @@ onMounted(() => { mounted.value = true; });
 </template>
 
 <style>
+/* Base64 keeps the image address free of characters that need escaping. */
+.start-grain {
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC45IiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PGZlQ29sb3JNYXRyaXggdmFsdWVzPSIwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAwIDAgMCAxIDAiLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsdGVyPSJ1cmwoI24pIi8+PC9zdmc+');
+}
 @keyframes breathe {
   0%, 100% { transform: scale(1); box-shadow: 0 20px 60px -20px rgba(118, 69, 232, 0.6); }
   50% { transform: scale(1.03); box-shadow: 0 25px 80px -15px rgba(118, 69, 232, 0.9); }

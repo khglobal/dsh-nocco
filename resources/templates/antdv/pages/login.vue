@@ -2,6 +2,7 @@
 definePageMeta({ layout: false });
 
 const { login } = useAuth();
+const t = useShellText();
 const form = reactive({ username: '', password: '' });
 const loading = ref(false);
 const error = ref('');
@@ -13,7 +14,7 @@ async function submit() {
     await login(form.username, form.password);
     await navigateTo('/');
   } catch {
-    error.value = '用户名或密码不正确';
+    error.value = t.wrongCredentials;
   } finally {
     loading.value = false;
   }
@@ -23,16 +24,16 @@ async function submit() {
 <template>
   <main class="login">
     <a-card class="panel" :bordered="false">
-      <h1>登录</h1>
+      <h1>{{ t.signIn }}</h1>
       <a-form layout="vertical" :model="form" @finish="submit">
-        <a-form-item label="用户名" name="username" :rules="[{ required: true, message: '请输入用户名' }]">
+        <a-form-item :label="t.username" name="username" :rules="[{ required: true, message: t.usernameRequired }]">
           <a-input v-model:value="form.username" autocomplete="username" />
         </a-form-item>
-        <a-form-item label="密码" name="password" :rules="[{ required: true, message: '请输入密码' }]">
+        <a-form-item :label="t.password" name="password" :rules="[{ required: true, message: t.passwordRequired }]">
           <a-input-password v-model:value="form.password" autocomplete="current-password" />
         </a-form-item>
         <a-alert v-if="error" type="error" :message="error" show-icon class="error" />
-        <a-button type="primary" html-type="submit" block :loading="loading">登录</a-button>
+        <a-button type="primary" html-type="submit" block :loading="loading">{{ t.signIn }}</a-button>
       </a-form>
     </a-card>
   </main>

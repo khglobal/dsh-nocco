@@ -1,42 +1,141 @@
-import { createElement as h, useState, type CSSProperties, type ReactElement } from 'react';
+import { createElement as h, useCallback, useEffect, useState, type CSSProperties, type ReactElement } from 'react';
 import { PALETTES, type Palette } from './palette.js';
-import { pageLang, text } from './text.js';
+import { pageLang, text, type Strings } from './text.js';
+
+export interface CheckpointItem { id: string; label: string; time: number; filesChanged: number; }
 
 export interface PreviewTabApi {
   /** Recolour the app served at this address. */
   setPalette(url: string, palette: Palette): Promise<void>;
+  /** List the checkpoints of the app served at this address, after an optional save or restore. */
+  checkpoints(url: string, action: 'list' | 'save' | 'restore', id?: string): Promise<CheckpointItem[]>;
 }
 
 const WIDTHS = [['desktop', '100%'], ['tablet', '820px'], ['phone', '390px']] as const;
-const button: CSSProperties = { border: '1px solid rgba(128,128,128,0.35)', borderRadius: 6, padding: '3px 8px', fontSize: 12, background: 'transparent', color: 'inherit', cursor: 'pointer' };
+const LINE = 'rgba(128,128,128,0.28)';
+const ACCENT = '#24456D';
+export const button: CSSProperties = {
+  border: `1px solid ${LINE}`, borderRadius: 6, padding: '3px 9px', fontSize: 12, lineHeight: '18px',
+  background: 'transparent', color: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
+};
+const pressed: CSSProperties = { ...button, borderColor: 'currentColor', fontWeight: 600 };
+const solid: CSSProperties = { ...button, background: ACCENT, borderColor: ACCENT, color: '#fff' };
 
-/** The right-sidebar tab that shows a running app with width, reload and palette controls. */
+/** A short account of how long ago a moment was, in the given language. */
+export function ago(seconds: number, now: number, lang: string): string {
+  const elapsed = Math.max(0, now - seconds);
+  const format = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+  if (elapsed < 60) return format.format(0, 'second');
+  if (elapsed < 3600) return format.format(-Math.floor(elapsed / 60), 'minute');
+  if (elapsed < 86400) return format.format(-Math.floor(elapsed / 3600), 'hour');
+  return format.format(-Math.floor(elapsed / 86400), 'day');
+}
+
+function History(props: { url: string; api: PreviewTabApi; strings: Strings; lang: string; onRestored(): void }): ReactElement {
+  const { url, api, strings, lang } = props;
+  const [items, setItems] = useState<CheckpointItem[] | undefined>();
+  const [failure, setFailure] = useState('');
+  const [asking, setAsking] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
+
+  const act = useCallback(async (action: 'list' | 'save' | 'restore', id?: string) => {
+    try {
+      setItems(await api.checkpoints(url, action, id));
+      setFailure('');
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : String(error));
+    }
+  }, [api, url]);
+
+  // Checkpoints appear as the agent works, so keep the list fresh while it shows.
+  useEffect(() => {
+    void act('list');
+    const timer = setInterval(() => { void act('list'); }, 5000);
+    return () => clearInterval(timer);
+  }, [act]);
+
+  const run = async (action: 'save' | 'restore', id?: string): Promise<void> => {
+    setBusy(true);
+    await act(action, id);
+    setBusy(false);
+    setAsking(undefined);
+    if (action === 'restore') props.onRestored();
+  };
+
+  const now = Date.now() / 1000;
+  return h('aside', { style: { width: 264, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0, borderLeft: `1px solid ${LINE}`, fontSize: 12 } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderBottom: `1px solid ${LINE}` } },
+      h('strong', { style: { flex: 1, fontSize: 13 } }, strings.history),
+      h('button', { type: 'button', disabled: busy, onClick: () => { void run('save'); }, style: button }, strings.saveCheckpoint),
+    ),
+    h('div', { style: { padding: '6px 10px', opacity: 0.6, lineHeight: 1.5 } }, strings.historyNote),
+    failure ? h('div', { role: 'alert', style: { padding: '6px 10px', color: '#b42318' } }, failure) : null,
+    h('ol', { style: { flex: 1, minHeight: 0, overflowY: 'auto', margin: 0, padding: '4px 10px 12px', listStyle: 'none' } },
+      items === undefined ? null
+        : items.length === 0 ? h('li', { style: { opacity: 0.6, padding: '8px 0' } }, strings.noCheckpoints)
+          : items.map((item, index) => h('li', { key: item.id, style: { display: 'flex', gap: 10, position: 'relative', paddingBottom: 14 } },
+            // The rail: a dot per checkpoint, joined by a line to the one before it.
+            h('div', { 'aria-hidden': true, style: { width: 10, flexShrink: 0, position: 'relative' } },
+              h('span', { style: { position: 'absolute', top: 4, left: 0, width: 10, height: 10, borderRadius: 999, boxSizing: 'border-box', border: `2px solid ${ACCENT}`, background: index === 0 ? ACCENT : 'transparent' } }),
+              index < items.length - 1 ? h('span', { style: { position: 'absolute', top: 16, bottom: -16, left: 4, width: 2, background: LINE } }) : null,
+            ),
+            h('div', { style: { flex: 1, minWidth: 0 } },
+              h('div', { style: { fontSize: 13, fontWeight: index === 0 ? 600 : 400, overflowWrap: 'anywhere' } }, item.label),
+              h('div', { style: { opacity: 0.6, marginTop: 2 } },
+                [ago(item.time, now, lang), strings.filesChanged.replace('{n}', String(item.filesChanged)), index === 0 ? strings.current : ''].filter(Boolean).join(' · ')),
+              index === 0 ? null
+                : asking === item.id
+                  ? h('div', { style: { display: 'flex', gap: 6, marginTop: 6 } },
+                    h('button', { type: 'button', disabled: busy, onClick: () => { void run('restore', item.id); }, style: solid }, strings.confirmRestore),
+                    h('button', { type: 'button', disabled: busy, onClick: () => setAsking(undefined), style: button }, strings.cancel))
+                  : h('button', { type: 'button', onClick: () => setAsking(item.id), style: { ...button, marginTop: 6 } }, strings.restore),
+            ),
+          )),
+    ),
+  );
+}
+
+/** The right-sidebar tab that shows a running app with width, reload, palette and history controls. */
 export function createPreviewTab(api: PreviewTabApi): (props: { useTabInfo?: () => { tab?: { navigation?: { params?: { url?: string } } } } }) => ReactElement {
   return function PreviewTab(props): ReactElement {
-    const strings = text(pageLang());
+    const lang = pageLang();
+    const strings = text(lang);
     const url = props.useTabInfo?.().tab?.navigation?.params?.url;
     const [width, setWidth] = useState<string>('100%');
     const [generation, setGeneration] = useState(0);
+    const [palette, setPalette] = useState<string | undefined>();
+    const [history, setHistory] = useState(false);
     if (!url) return h('div', { style: { padding: 24, fontSize: 13, opacity: 0.7 } }, strings.noPreview);
+    const reload = (): void => setGeneration((current) => current + 1);
 
     return h('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } },
-      h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', flexWrap: 'wrap', borderBottom: '1px solid rgba(128,128,128,0.25)' } },
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', flexWrap: 'wrap', borderBottom: `1px solid ${LINE}` } },
         ...WIDTHS.map(([id, value]) => h('button', {
           key: id, type: 'button', 'aria-pressed': width === value, onClick: () => setWidth(value),
-          style: width === value ? { ...button, borderColor: 'currentColor' } : button,
+          style: width === value ? pressed : button,
         }, strings[id])),
-        h('button', { type: 'button', onClick: () => setGeneration((current) => current + 1), style: button }, strings.reload),
+        h('button', { type: 'button', onClick: reload, style: button }, strings.reload),
         h('a', { href: url, target: '_blank', rel: 'noopener', style: { ...button, textDecoration: 'none' } }, strings.external),
         h('span', { style: { flex: 1 } }),
-        h('span', { style: { fontSize: 12, opacity: 0.6 } }, strings.palette),
-        ...PALETTES.map((palette) => h('button', {
-          key: palette.id, type: 'button', title: palette.id, 'aria-label': `${strings.palette}: ${palette.id}`,
-          onClick: () => { void api.setPalette(url, palette).catch(() => {}); },
-          style: { width: 18, height: 18, borderRadius: 999, border: `2px solid ${palette.bg}`, outline: '1px solid rgba(128,128,128,0.5)', background: palette.primary, cursor: 'pointer', padding: 0 },
-        })),
+        h('span', { role: 'group', 'aria-label': strings.palette, style: { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '0 6px' } },
+          ...PALETTES.map((item) => h('button', {
+            key: item.id, type: 'button', title: item.id, 'aria-label': `${strings.palette}: ${item.id}`, 'aria-pressed': palette === item.id,
+            onClick: () => { setPalette(item.id); void api.setPalette(url, item).catch(() => setPalette(undefined)); },
+            style: {
+              width: 14, height: 14, borderRadius: 999, padding: 0, cursor: 'pointer', border: 0, outlineOffset: 4,
+              // Each swatch shows the palette's main colour ringed by its background colour.
+              background: item.primary, boxShadow: `0 0 0 2px ${item.bg}, 0 0 0 3px ${LINE}`,
+              outline: palette === item.id ? '2px solid currentColor' : 'none',
+            },
+          })),
+        ),
+        h('button', { type: 'button', 'aria-pressed': history, onClick: () => setHistory((open) => !open), style: history ? pressed : button }, strings.history),
       ),
-      h('div', { style: { flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center', background: 'rgba(128,128,128,0.12)' } },
-        h('iframe', { key: generation, src: url, title: strings.previewTitle, style: { width, maxWidth: '100%', height: '100%', border: 0, background: '#fff' } }),
+      h('div', { style: { flex: 1, minHeight: 0, display: 'flex' } },
+        h('div', { style: { flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center', background: 'rgba(128,128,128,0.12)' } },
+          h('iframe', { key: generation, src: url, title: strings.previewTitle, style: { width, maxWidth: '100%', height: '100%', border: 0, background: '#fff' } }),
+        ),
+        history ? h(History, { url, api, strings, lang, onRestored: reload }) : null,
       ),
     );
   };

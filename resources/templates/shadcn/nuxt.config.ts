@@ -3,6 +3,8 @@ export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: false },
   app: { head: { title: __APP_NAME_JSON__, htmlAttrs: { lang: '__APP_LANG__' } } },
+  // The language the app was created in; shell pages read it for their own text.
+  runtimeConfig: { public: { lang: '__APP_LANG__' } },
   modules: ['shadcn-nuxt', '@nuxtjs/tailwindcss'],
   shadcn: {
     prefix: '',

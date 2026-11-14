@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
+import enUS from 'ant-design-vue/es/locale/en_US';
 import { theme } from 'ant-design-vue';
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 
+const locale = useIsChinese() ? zhCN : enUS;
 const primary = ref('#9E7FFF');
 const isDark = ref(false);
 
@@ -15,14 +17,23 @@ const luminance = (hex: string): number => {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
 
-onMounted(() => {
-  if (typeof window === 'undefined') return;
+const readPalette = () => {
   const style = getComputedStyle(document.documentElement);
   const p = style.getPropertyValue('--nocco-primary').trim();
   if (p) primary.value = p;
   const bg = style.getPropertyValue('--nocco-bg').trim() || '#ffffff';
   if (/^#[0-9a-fA-F]{3,8}$/.test(bg)) isDark.value = luminance(bg) < 0.5;
+};
+
+let paletteWatcher: MutationObserver | undefined;
+onMounted(() => {
+  readPalette();
+  // The palette file can change while the app is open; the dev server swaps
+  // the page's style elements, so read the colours again whenever they change.
+  paletteWatcher = new MutationObserver(readPalette);
+  paletteWatcher.observe(document.head, { childList: true, subtree: true, characterData: true });
 });
+onBeforeUnmount(() => paletteWatcher?.disconnect());
 
 const themeConfig = computed(() => ({
   algorithm: isDark.value ? theme.darkAlgorithm : theme.defaultAlgorithm,
@@ -34,7 +45,7 @@ const themeConfig = computed(() => ({
 </script>
 
 <template>
-  <a-config-provider :theme="themeConfig" :locale="zhCN">
+  <a-config-provider :theme="themeConfig" :locale="locale">
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>

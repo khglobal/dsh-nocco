@@ -2,7 +2,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import { createElement, useEffect, type ReactElement } from 'react';
 import { createHome, HomeIcon } from './home.js';
 import type { Palette } from './palette.js';
-import { createPreviewTab } from './preview-tab.js';
+import { button, createPreviewTab, type CheckpointItem } from './preview-tab.js';
 import { extractPreviewUrl } from './preview-url.js';
 import { FALLBACK, langOf } from './suggest.js';
 import { pageLang, text } from './text.js';
@@ -65,11 +65,13 @@ export function apply(context: Context): void {
       try { sidebar?.openTab(TAB_KIND, { params: { url } }); } catch { /* no session surface or no tab: the row keeps its button */ }
     }, [url]);
     const row = { display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13 } as const;
-    if (!url) return createElement('div', { style: row }, strings.stopped);
+    // Until the call has a result there is nothing to say about the server yet.
+    const settled = (props as { phase?: string } | null)?.phase === 'result';
+    if (!url) return createElement('div', { style: { ...row, opacity: 0.7 } }, settled ? strings.stopped : strings.working);
     return createElement('div', { style: row },
       createElement('span', null, strings.running),
       createElement('a', { href: url, target: '_blank', rel: 'noopener' }, url),
-      createElement('button', { type: 'button', onClick: () => open(url) }, strings.open),
+      createElement('button', { type: 'button', onClick: () => open(url), style: button }, strings.open),
     );
   }
 
@@ -98,6 +100,7 @@ export function apply(context: Context): void {
   ctx.inject(['sidebarRight', 'sidebarRightTabs'], (inner) => {
     const PreviewTab = createPreviewTab({
       setPalette: async (url: string, palette: Palette) => { await post('api/nocco.palette', { url, palette }); },
+      checkpoints: async (url, action, id) => (await post<{ checkpoints: CheckpointItem[] }>('api/nocco.checkpoints', { url, action, id })).checkpoints,
     });
     const tabs = inner.get('sidebarRightTabs') as SidebarRightTabs;
     sidebar = inner.get('sidebarRight') as SidebarRight;

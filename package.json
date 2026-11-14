@@ -13,8 +13,9 @@
     "dsh",
     "dsh-plugin",
     "deepseek-harness",
+    "nuxt",
     "vue",
-    "element-plus"
+    "web-app-builder"
   ],
   "exports": {
     ".": {
@@ -81,5 +82,10 @@
         "@deepseek-ai/dsh-client-ui-sidebar-right"
       ]
     }
+  },
+  "dependencies": {
+    "csv-parse": "7.0.3",
+    "mammoth": "1.13.0",
+    "read-excel-file": "9.3.17"
   }
 }

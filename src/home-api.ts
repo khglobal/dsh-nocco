@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { Checkpoints } from './checkpoints.js';
 import { paletteCss, readPalette } from './palette.js';
 import type { PreviewManager } from './preview.js';
 import { buildSuggestPrompt, FALLBACK, langOf, parseSuggestions, SUGGESTION_COUNT, type Lang, type SuggestContext } from './suggest.js';
@@ -108,13 +109,16 @@ async function askModel(get: Lookup, system: string, user: string, signal: Abort
     createUserMessage(input: unknown): unknown;
     BlockAssembler: new () => { push(chunk: unknown): void; finish?: { kind?: string; failure?: { code?: string } }; blocks(): readonly { type?: string; text?: unknown }[] };
   };
-  const call = await llm.prepareCall({ provider: selection.provider, model: selection.model, maxTokens: 1024 }, signal);
+  const call = await llm.prepareCall({ provider: selection.provider, model: selection.model, maxTokens: 4096 }, signal);
   const assembler = new BlockAssembler();
   const messages = [createUserMessage({ content: [{ type: 'text', text: user }], source: { kind: 'dsh-nocco' } })];
   for await (const chunk of call.stream({ ...call.config, system, purpose: 'nocco-suggest', signal, messages })) assembler.push(chunk);
   const finish = assembler.finish;
   if (finish?.kind === 'error' || finish?.kind === 'aborted') throw new Error(`model call failed: ${finish.failure?.code ?? finish.kind}`);
-  return assembler.blocks().flatMap((block) => (block.type === 'text' && typeof block.text === 'string' ? [block.text] : [])).join('');
+  const blocks = assembler.blocks();
+  const reply = blocks.flatMap((block) => (block.type === 'text' && typeof block.text === 'string' ? [block.text] : [])).join('');
+  if (!reply.trim()) throw new Error(`the model reply held no text (finish: ${finish?.kind ?? 'unknown'}; blocks: ${blocks.map((block) => block.type).join(',') || 'none'})`);
+  return reply;
 }
 
 /** Suggested builds for the home page, cached per language until refreshed. */
@@ -146,7 +150,7 @@ const json = (value: unknown, status = 200): Response => Response.json(value, { 
  * Routes the plugin's pages call. They exist while the host's connection
  * service does; without it the pages fall back on their own.
  */
-export function registerHomeApi(ctx: Context, previews: PreviewManager): void {
+export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoints: Checkpoints): void {
   const suggest = createSuggester(trackServices(ctx, ['llm', 'agentDefaultModel', 'workspaceRegistry', 'sessionQuery']));
   const handle = (work: (body: Record<string, unknown>) => Promise<unknown>) => async (request: Request): Promise<Response> => {
     try {
@@ -155,6 +159,12 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager): void {
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
+  };
+  // Pages name an app by the address of its running preview, never by a path.
+  const served = (url: unknown): string => {
+    const preview = previews.list().find((item) => item.url === url);
+    if (!preview) throw new Error('no running preview has that address');
+    return preview.directory;
   };
   const host = ctx as unknown as {
     inject(deps: readonly string[], callback: (inner: { get(name: string): unknown; effect(setup: () => () => void): unknown }) => void): unknown;
@@ -174,10 +184,18 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager): void {
         path: '/api/nocco.palette', methods: ['POST'], requestBody: 'buffered',
         fetch: handle(async (body) => {
           // Only an app this plugin is serving can be recoloured, and only with validated colours.
-          const preview = previews.list().find((item) => item.url === body.url);
-          if (!preview) throw new Error('no running preview has that address');
-          await writeFile(join(preview.directory, 'assets', 'css', 'design-scheme.css'), paletteCss(readPalette(body.palette)));
+          await writeFile(join(served(body.url), 'assets', 'css', 'design-scheme.css'), paletteCss(readPalette(body.palette)));
           return { ok: true };
+        }),
+      }),
+      connection.fetch.register({
+        path: '/api/nocco.checkpoints', methods: ['POST'], requestBody: 'buffered',
+        fetch: handle(async (body) => {
+          const directory = served(body.url);
+          if (body.action === 'save') await checkpoints.save(directory, typeof body.label === 'string' ? body.label : undefined);
+          else if (body.action === 'restore') await checkpoints.restore(directory, String(body.id ?? ''));
+          else if (body.action !== 'list') throw new Error('action must be list, save or restore');
+          return { checkpoints: await checkpoints.list(directory) };
         }),
       }),
     ];

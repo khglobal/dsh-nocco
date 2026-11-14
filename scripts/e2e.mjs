@@ -1,5 +1,5 @@
 // Real scaffold, real install, real Nuxt dev server, real sign-in.
-// Run with: npm run e2e [-- antdv shadcn vant] [--hold]
+// Run with: npm run e2e [-- antdv shadcn vant] [--hold] [--en]
 import { rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { DESIGN_SYSTEMS, scaffold } from '../dist/scaffold.js';
@@ -7,6 +7,7 @@ import { createPreviewManager } from '../dist/preview.js';
 import { schemaSync } from '../dist/schema-sync.js';
 
 const hold = process.argv.includes('--hold');
+const language = process.argv.includes('--en') ? 'en' : 'zh-CN';
 const asked = process.argv.slice(2).filter((arg) => DESIGN_SYSTEMS.includes(arg));
 const kits = asked.length > 0 ? asked : DESIGN_SYSTEMS;
 const previews = createPreviewManager({ sync: schemaSync, readyTimeoutMs: 120000 });
@@ -31,7 +32,7 @@ try {
     await rm(directory, { recursive: true, force: true });
 
     const started = Date.now();
-    const made = await scaffold({ directory, appName: `E2E ${designSystem}`, language: 'zh-CN', designSystem });
+    const made = await scaffold({ directory, appName: `E2E ${designSystem}`, language, designSystem });
     expect(made.installed, `${designSystem}: install failed with ${made.packageManager}\n${made.installOutput}`);
     const installed = Date.now();
 

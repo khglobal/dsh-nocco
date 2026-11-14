@@ -53,8 +53,9 @@ Data lives in a SQLite file through Drizzle. Define tables in
 `server/db/schema.ts` beside the existing `users` table, which must stay.
 The preview applies the schema to the database whenever that file changes;
 you do not run a migration command. Read and write data only in server
-routes, importing `db` from `server/db` and the tables from
-`server/db/schema`. Pages never touch the database directly.
+routes, importing `db` from `~~/server/db` and the tables from
+`~~/server/db/schema`; the `~~` prefix is the app root, so the import reads
+the same at any folder depth. Pages never touch the database directly.
 
 ## Sign-in and roles
 
@@ -73,6 +74,29 @@ Roles are plain strings stored on the user. The template starts with `admin`
 and `member`. A system that needs more roles adds them as values and gives
 admins a page to create users and set their roles, with a server route that
 stores passwords through `hashPassword`.
+
+## Building from the user's files
+
+When the user points to a spreadsheet, CSV, Word or Markdown file as the
+basis of the system, read it with `nocco_import` rather than by any other
+means. A document comes back as text to take requirements from. A table file
+comes back as its columns, their kinds, the row count and a few rows; pass
+the app directory as well and every row is saved to a data file inside the
+app. Design the tables from the reported columns, and load the rows from
+that data file in a server plugin that fills a table only while it is empty.
+The rows never need to be retyped or passed through you.
+
+## Checkpoints
+
+The user sees the app's checkpoints as a timeline beside the preview and can
+return to any of them. When a piece of work the user asked for is complete
+and the preview is free of errors, save a checkpoint with `nocco_checkpoint`,
+labelled with a short phrase in the user's language that names what changed.
+When the user asks to undo or go back, list the checkpoints and restore the
+one they mean instead of rewriting files by hand. Checkpoints hold the app's
+files, not its stored data; when the restored version defines different
+tables, tell the user that data it has no place for is removed and that a
+copy of the database was kept in `.nocco/backups`.
 
 ## Styling
 

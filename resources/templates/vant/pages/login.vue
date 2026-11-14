@@ -2,6 +2,7 @@
 definePageMeta({ layout: false });
 
 const { login } = useAuth();
+const t = useShellText();
 const username = ref('');
 const password = ref('');
 const loading = ref(false);
@@ -14,7 +15,7 @@ async function submit() {
     await login(username.value, password.value);
     await navigateTo('/');
   } catch {
-    error.value = '用户名或密码不正确';
+    error.value = t.wrongCredentials;
   } finally {
     loading.value = false;
   }
@@ -23,15 +24,15 @@ async function submit() {
 
 <template>
   <main class="login">
-    <h1>登录</h1>
+    <h1>{{ t.signIn }}</h1>
     <van-form @submit="submit">
       <van-cell-group inset>
-        <van-field v-model="username" name="username" label="用户名" autocomplete="username" :rules="[{ required: true, message: '请输入用户名' }]" />
-        <van-field v-model="password" type="password" name="password" label="密码" autocomplete="current-password" :rules="[{ required: true, message: '请输入密码' }]" />
+        <van-field v-model="username" name="username" :label="t.username" autocomplete="username" :rules="[{ required: true, message: t.usernameRequired }]" />
+        <van-field v-model="password" type="password" name="password" :label="t.password" autocomplete="current-password" :rules="[{ required: true, message: t.passwordRequired }]" />
       </van-cell-group>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <div class="actions">
-        <van-button round block type="primary" native-type="submit" :loading="loading">登录</van-button>
+        <van-button round block type="primary" native-type="submit" :loading="loading">{{ t.signIn }}</van-button>
       </div>
     </van-form>
   </main>

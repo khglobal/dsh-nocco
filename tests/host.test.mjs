@@ -15,6 +15,7 @@ function fakeContext() {
       skills: { register: (skill) => { skills.push(skill); return () => {}; } },
       effect: (setup) => { dispose = setup(); },
       inject: () => {},
+      on: () => {},
     },
   };
 }
@@ -23,12 +24,12 @@ test('requires the tools and skills services', () => {
   assert.deepEqual([...host.inject], ['tools', 'skills']);
 });
 
-test('registers the skill and both tools', () => {
+test('registers the skill and its tools', () => {
   const fake = fakeContext();
   host.apply(fake.ctx);
   assert.deepEqual(fake.skills.map((skill) => skill.name), ['nocco']);
   assert.match(fake.skills[0].content, /nocco_scaffold/);
-  assert.deepEqual(fake.tools.map((tool) => tool.name).sort(), ['nocco_preview', 'nocco_scaffold']);
+  assert.deepEqual(fake.tools.map((tool) => tool.name).sort(), ['nocco_checkpoint', 'nocco_import', 'nocco_preview', 'nocco_scaffold']);
   fake.dispose();
 });
 
