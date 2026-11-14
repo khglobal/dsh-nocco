@@ -1,0 +1,32 @@
+/* Design tokens for the app. Reference them with var(...) in component styles. */
+:root {
+  --paper: #f6f7f9;
+  --paper-grad: linear-gradient(180deg, #f7f9fc 0%, #eef2f8 100%);
+  --surface: #ffffff;
+  --surface-2: #fdfdff;
+  --ink: #1a1f2c;
+  --ink-soft: #56607a;
+  --ink-mute: #8a93a8;
+  --line: rgba(20, 28, 40, 0.08);
+
+  --accent: oklch(0.38 0.13 255);
+  --accent-2: oklch(0.48 0.14 250);
+  --accent-soft: oklch(0.95 0.025 255);
+
+  --shadow-card: 0 1px 2px rgba(20, 28, 40, 0.04), 0 18px 40px -22px rgba(20, 28, 40, 0.24);
+  --radius-card: 16px;
+  --radius-tile: 12px;
+
+  --el-color-primary: oklch(0.38 0.13 255);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--ink);
+  background: var(--paper);
+}
