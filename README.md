@@ -97,14 +97,35 @@ Every screenshot is an app the agent built from one request.
 
 ## Requirements
 
-DSH 0.2.2-rc.1 or newer in the 0.2 line, Node 20 or newer, pnpm or npm, and
-git for checkpoints.
+DSH Desktop 0.2.2-rc.1 or newer in the 0.2 line. On the machine: Node 20 or
+newer, pnpm or npm, and git for checkpoints.
 
 ## Install
 
+The package name is `@khglobal/dsh-nocco`. In DSH Desktop there are three
+ways to install it:
+
+- **Ask DSH.** In any session, type:
+
+      Install the plugin @khglobal/dsh-nocco
+
+  The agent asks for your approval a few times and installs it. This works in
+  the Standard and Creator modes.
+- **Plugins page.** Open **Plugins** in the sidebar, click **Add plugin**,
+  enter `@khglobal/dsh-nocco` and click **Install**.
+- **Plugin market.** Once Nocco is listed in the community plugin index, open
+  **Plugins**, go to the **Discover** tab and search for `Nocco`.
+
+Nocco appears in the sidebar as soon as the install finishes.
+
+For DSH's web version, the same package installs from the command line:
+
     dsh plugin --profile web add @khglobal/dsh-nocco
 
-In DSH Desktop, install it from Settings → Plugins instead.
+## Update
+
+Open **Plugins**, then Nocco. When a newer version exists the page shows
+**Update available**; click **Update**.
 
 ## Use
 

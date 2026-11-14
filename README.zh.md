@@ -81,14 +81,32 @@ Nocco 把 DeepSeek Harness 变成一个构建网页应用的工作台。说出�
 
 ## 环境要求
 
-DSH 0.2 系列的 0.2.2-rc.1 或更新版本，Node 20 或更新版本，pnpm 或 npm；检查点
-功能需要 git。
+DSH 桌面版，0.2 系列的 0.2.2-rc.1 或更新版本。电脑上需要 Node 20 或更新版本、
+pnpm 或 npm；检查点功能需要 git。
 
 ## 安装
 
+包名是 `@khglobal/dsh-nocco`。在 DSH 桌面版里有三种安装方式：
+
+- **直接让 DSH 安装。** 在任意会话里输入：
+
+      安装插件 @khglobal/dsh-nocco
+
+  Agent 会请求你批准几次，然后完成安装。「标准」和「创作者」模式下可用。
+- **插件页面。** 打开侧栏的「插件」，点击「添加插件」，输入
+  `@khglobal/dsh-nocco`，点击「安装」。
+- **插件市场。** Nocco 上架社区插件索引之后，打开「插件」，进入「发现」页签，
+  搜索 `Nocco`。
+
+安装完成后，侧栏里马上会出现 Nocco。
+
+DSH 网页版可以用命令行安装同一个包：
+
     dsh plugin --profile web add @khglobal/dsh-nocco
 
-DSH 桌面版请在「设置 → 插件」里安装。
+## 更新
+
+打开「插件」，进入 Nocco。有新版本时页面会显示可用更新，点击「更新」即可。
 
 ## 使用
 

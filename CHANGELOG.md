@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- README: every way to install and update the plugin in DSH Desktop.
+
 ## 0.1.2
 
 - Apps are created in DSH's own language: the Nocco page states it in every
