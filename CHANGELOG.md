@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- DSH's plugin page shows the Chinese description when DSH is in Chinese.
+
 ## 0.1.3
 
 - README: every way to install and update the plugin in DSH Desktop.

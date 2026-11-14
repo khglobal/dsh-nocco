@@ -29,3 +29,12 @@ test('host and client modules are named after the package', async () => {
   const client = readFileSync(new URL('dist/client.browser.js', root), 'utf8');
   assert.match(client, /__ModuleLoader__\.load\(\{id: "@khglobal\/dsh-nocco"/);
 });
+
+test('each language points DSH at its own long description', () => {
+  for (const [lang, doc] of [['en', 'README.md'], ['zh', 'README.zh.md']]) {
+    const locale = JSON.parse(readFileSync(new URL(`../locale/${lang}.json`, import.meta.url), 'utf8'));
+    assert.equal(locale.meta.detail, doc);
+    assert.ok(readFileSync(new URL(`../${doc}`, import.meta.url), 'utf8').length > 0);
+    assert.ok(pkg.files.includes(doc));
+  }
+});

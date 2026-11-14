@@ -1,6 +1,6 @@
 {
   "name": "@khglobal/dsh-nocco",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Nocco: web application developer workbench for DeepSeek Harness. Build web systems from chat with design-system templates, a live preview, click-to-inspect and one-click undo.",
   "type": "module",
   "license": "MIT",
