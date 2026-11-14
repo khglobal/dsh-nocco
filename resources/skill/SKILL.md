@@ -10,7 +10,8 @@ keep the app running, and check the preview after each change.
 A new system begins with the `nocco_scaffold` tool. Give it an absolute path
 to an empty directory, a name, and a design system: `antdv` for desktop admin
 systems, `shadcn` for modern web apps, `vant` for mobile apps. The design
-system is fixed once the app exists. The tool returns the admin account for
+system is fixed once the app exists. When the request names a design system
+or a palette, pass them to the tool as given. The tool returns the admin account for
 the first sign-in; tell the user that username and password.
 
 Run the app with `nocco_preview` (action `start`) and tell the user the URL.

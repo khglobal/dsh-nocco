@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { cp, mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
+import { paletteCss, resolvePalette } from './palette.js';
 import { fileURLToPath } from 'node:url';
 
 export type Runner = (file: string, args: string[], cwd: string) => { status: number | null; output: string };
@@ -15,6 +16,8 @@ export interface ScaffoldInput {
   appName: string;
   language: 'zh-CN' | 'en';
   designSystem: DesignSystem;
+  /** An offered palette's id or a `#rrggbb` main colour; the template's own colours when absent or unknown. */
+  palette?: string;
 }
 
 export interface ScaffoldResult {
@@ -53,6 +56,7 @@ export async function scaffold(
   deps: { templatesDir?: string; run?: Runner } = {},
 ): Promise<ScaffoldResult> {
   const { directory, appName, language, designSystem } = input;
+  const palette = resolvePalette(input.palette);
   const run = deps.run ?? defaultRun;
   const templatesDir = deps.templatesDir ?? defaultTemplatesDir;
   if (!isAbsolute(directory)) throw new Error(`directory must be an absolute path: ${directory}`);
@@ -72,6 +76,7 @@ export async function scaffold(
   // npm drops .gitignore from published packages, so the template ships it
   // under another name.
   await rename(join(directory, 'gitignore'), join(directory, '.gitignore'));
+  if (palette) await writeFile(join(directory, 'assets', 'css', 'design-scheme.css'), paletteCss(palette));
   await replaceIn(join(directory, 'nuxt.config.ts'), [
     ['__APP_NAME_JSON__', JSON.stringify(appName)],
     ['__APP_LANG__', language],

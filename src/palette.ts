@@ -40,7 +40,7 @@ export function paletteCss(palette: Palette): string {
 `;
 }
 
-/** Palettes offered in the preview tab. */
+/** Palettes offered on the home page and in the preview tab. */
 export const PALETTES: readonly (Palette & { id: string })[] = [
   { id: 'violet', primary: '#9E7FFF', bg: '#ffffff', text: '#171717', textSecondary: '#4b5563', surface: '#f7f7f7', border: '#e5e7eb' },
   { id: 'navy', primary: '#24456D', bg: '#ffffff', text: '#1a1f2c', textSecondary: '#56607a', surface: '#f6f7f9', border: '#e3e7ee' },
@@ -49,3 +49,16 @@ export const PALETTES: readonly (Palette & { id: string })[] = [
   { id: 'rose', primary: '#d6336c', bg: '#ffffff', text: '#22141a', textSecondary: '#6a4c58', surface: '#fbf4f6', border: '#f0dde3' },
   { id: 'night', primary: '#8ea2ff', bg: '#12141c', text: '#eef0f6', textSecondary: '#a4abbd', surface: '#1b1e29', border: '#2c3040' },
 ];
+
+/**
+ * The palette a name or colour stands for: the id of an offered palette, or a
+ * `#rrggbb` colour, which becomes the main colour of a light palette.
+ */
+export function resolvePalette(value: string | undefined): Palette | undefined {
+  const wanted = (value ?? '').trim().toLowerCase();
+  if (!wanted) return undefined;
+  const offered = PALETTES.find((palette) => palette.id === wanted);
+  if (offered) { const { id: _id, ...palette } = offered; return palette; }
+  if (!HEX.test(wanted)) return undefined;
+  return { primary: wanted, bg: '#ffffff', text: '#171717', textSecondary: '#4b5563', surface: '#f7f7f7', border: '#e5e7eb' };
+}

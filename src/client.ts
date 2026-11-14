@@ -78,16 +78,47 @@ export function apply(context: Context): void {
   ctx.slots.inject('tool.call.toolview', () =>
     ctx.slots.register({ name: 'tool.call.toolview', key: 'nocco_preview' }, PreviewRow));
 
+  // A draft the home page has just handed to a new session and wants sent.
+  let pending: { draft: string; at: number } | undefined;
+  const compact = (value: string): string => value.replace(/\s+/g, ' ').trim();
+
+  /**
+   * Sends the home page's draft once the new session's composer holds it.
+   * It renders nothing; it lives in the composer because that is where a
+   * session hands a plugin the action that submits its input.
+   */
+  function AutoSend(props: unknown): null {
+    const session = props as {
+      useInput?: <T>(select: (state: { draft: string; phase: string }) => T) => T;
+      inputActions?: { submit(): void };
+    };
+    const draft = session.useInput?.((state) => state.draft) ?? '';
+    const phase = session.useInput?.((state) => state.phase) ?? '';
+    useEffect(() => {
+      if (!pending) return;
+      // A draft that never arrives must not be sent later, when the user has typed something else.
+      if (Date.now() - pending.at > 15000) { pending = undefined; return; }
+      if (phase !== 'plain' || compact(draft) !== compact(pending.draft)) return;
+      pending = undefined;
+      session.inputActions?.submit();
+    }, [draft, phase]);
+    return null;
+  }
+  ctx.slots.inject('conversation.input.overlay', () =>
+    ctx.slots.register({ name: 'conversation.input.overlay', id: 'nocco-autosend', order: 99 }, AutoSend));
+
   // Home page: needs the layout service to be selectable from the sidebar.
   ctx.inject(['layout', 'uiWorkspace'], (inner) => {
     const Home = createHome({
       // If the Host half cannot answer, show the sample ideas instead of an empty lane.
       suggestions: (lang, refresh) => post<{ suggestions: string[]; source: 'model' | 'fallback' }>('api/nocco.suggestions', { lang, refresh })
         .catch(() => ({ suggestions: [...FALLBACK[langOf(lang)]], source: 'fallback' as const })),
+      enhance: async (request) => (await post<{ text: string }>('api/nocco.enhance', { text: request })).text,
       start: (draft) => {
         // Leave the home page first: the draft is written into the conversation
         // view, which only exists once that view is showing.
         (inner.get('layout') as Layout).selectPanel(null);
+        pending = { draft, at: Date.now() };
         (inner.get('uiWorkspace') as UiWorkspace).startSession(undefined, { prompt: draft, whenDraftExists: 'replace' });
       },
     });

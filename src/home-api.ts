@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import { readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Checkpoints } from './checkpoints.js';
+import { buildEnhancePrompt, cleanEnhanced, ENHANCE_LIMIT } from './enhance.js';
 import { paletteCss, readPalette } from './palette.js';
 import type { PreviewManager } from './preview.js';
 import { buildSuggestPrompt, FALLBACK, langOf, parseSuggestions, SUGGESTION_COUNT, type Lang, type SuggestContext } from './suggest.js';
@@ -112,13 +113,26 @@ async function askModel(get: Lookup, system: string, user: string, signal: Abort
   const call = await llm.prepareCall({ provider: selection.provider, model: selection.model, maxTokens: 4096 }, signal);
   const assembler = new BlockAssembler();
   const messages = [createUserMessage({ content: [{ type: 'text', text: user }], source: { kind: 'dsh-nocco' } })];
-  for await (const chunk of call.stream({ ...call.config, system, purpose: 'nocco-suggest', signal, messages })) assembler.push(chunk);
+  for await (const chunk of call.stream({ ...call.config, system, purpose: 'nocco-home', signal, messages })) assembler.push(chunk);
   const finish = assembler.finish;
   if (finish?.kind === 'error' || finish?.kind === 'aborted') throw new Error(`model call failed: ${finish.failure?.code ?? finish.kind}`);
   const blocks = assembler.blocks();
   const reply = blocks.flatMap((block) => (block.type === 'text' && typeof block.text === 'string' ? [block.text] : [])).join('');
   if (!reply.trim()) throw new Error(`the model reply held no text (finish: ${finish?.kind ?? 'unknown'}; blocks: ${blocks.map((block) => block.type).join(',') || 'none'})`);
   return reply;
+}
+
+/** Rewrite a rough request into a clearer one with the user's default model. */
+export function createEnhancer(get: Lookup, ask: typeof askModel = askModel) {
+  return async function enhance(request: unknown): Promise<{ text: string }> {
+    const original = typeof request === 'string' ? request.trim() : '';
+    if (!original) throw new Error('there is no request to improve');
+    if (original.length > ENHANCE_LIMIT) throw new Error(`the request is longer than ${ENHANCE_LIMIT} characters`);
+    const { system, user } = buildEnhancePrompt(original);
+    const text = cleanEnhanced(await ask(get, system, user, AbortSignal.timeout(60000)));
+    if (!text) throw new Error('the model returned nothing to use');
+    return { text };
+  };
 }
 
 /** Suggested builds for the home page, cached per language until refreshed. */
@@ -151,7 +165,9 @@ const json = (value: unknown, status = 200): Response => Response.json(value, { 
  * service does; without it the pages fall back on their own.
  */
 export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoints: Checkpoints): void {
-  const suggest = createSuggester(trackServices(ctx, ['llm', 'agentDefaultModel', 'workspaceRegistry', 'sessionQuery']));
+  const services = trackServices(ctx, ['llm', 'agentDefaultModel', 'workspaceRegistry', 'sessionQuery']);
+  const suggest = createSuggester(services);
+  const enhance = createEnhancer(services);
   const handle = (work: (body: Record<string, unknown>) => Promise<unknown>) => async (request: Request): Promise<Response> => {
     try {
       const body = request.method === 'POST' ? await request.json().catch(() => ({})) as Record<string, unknown> : {};
@@ -175,6 +191,10 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoi
       connection.fetch.register({
         path: '/api/nocco.suggestions', methods: ['POST'], requestBody: 'buffered',
         fetch: handle((body) => suggest(langOf(body.lang), body.refresh === true)),
+      }),
+      connection.fetch.register({
+        path: '/api/nocco.enhance', methods: ['POST'], requestBody: 'buffered',
+        fetch: handle((body) => enhance(body.text)),
       }),
       connection.fetch.register({
         path: '/api/nocco.previews', methods: ['GET'],

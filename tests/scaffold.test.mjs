@@ -84,3 +84,15 @@ test('keeps the copied files when install fails', async () => {
   assert.match(result.installOutput, /ERESOLVE/);
   assert.ok(existsSync(join(dir, 'package.json')));
 });
+
+test('a palette is written into the app; an unknown one leaves the template colours', async () => {
+  const css = (dir) => readFileSync(join(dir, 'assets', 'css', 'design-scheme.css'), 'utf8');
+  const named = fresh(), custom = fresh(), unknown = fresh(), plain = fresh();
+  await scaffold(input(named, { palette: 'Emerald' }), { run: ok() });
+  await scaffold(input(custom, { palette: '#112233' }), { run: ok() });
+  await scaffold(input(unknown, { palette: 'sparkly' }), { run: ok() });
+  await scaffold(input(plain), { run: ok() });
+  assert.match(css(named), /--nocco-primary: #0f9d76;/);
+  assert.match(css(custom), /--nocco-primary: #112233;/);
+  assert.equal(css(unknown), css(plain));
+});

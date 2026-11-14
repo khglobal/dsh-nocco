@@ -38,6 +38,7 @@ export function apply(ctx: Context): void {
       appName: { type: 'string', required: true, description: 'Name shown in the page title' },
       language: { type: 'string', description: 'Interface language of the app: zh-CN or en. Defaults to zh-CN' },
       designSystem: { type: 'string', description: 'antdv (Ant Design Vue, desktop admin systems), shadcn (shadcn with Tailwind, modern web apps) or vant (Vant, mobile apps). Defaults to antdv' },
+      palette: { type: 'string', description: 'Colour palette of the app: violet, navy, emerald, amber, rose, night, or a #rrggbb main colour. Defaults to the template\'s own colours' },
     },
     output: json,
     async execute(args) {
@@ -46,6 +47,7 @@ export function apply(ctx: Context): void {
         appName: args.appName,
         language: args.language === 'en' ? 'en' : 'zh-CN',
         designSystem: DESIGN_SYSTEMS.includes(args.designSystem as DesignSystem) ? (args.designSystem as DesignSystem) : 'antdv',
+        palette: args.palette,
       });
       // The untouched template is the first point the user can return to.
       await checkpoints.save(created.directory, args.appName).catch(() => undefined);

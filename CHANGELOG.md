@@ -8,7 +8,9 @@ First release.
   sign-in, roles and a SQLite database.
 - `nocco` skill, `nocco_scaffold` and `nocco_preview` tools; the preview
   applies the database schema whenever it changes.
-- Nocco home page with model-generated build suggestions.
+- Nocco home page in the Nocco web app's look, light and dark, with
+  model-generated build suggestions, prompt enhancement, a colour scheme
+  picker, and Build that sends the request straight to the agent.
 - Preview tab with device widths, reload, a palette picker and a History
   timeline of checkpoints with restore.
 - `nocco_import` reads Excel, CSV, TSV, Word, Markdown and text files; table
