@@ -14,6 +14,8 @@ export interface PreviewManager {
   status(directory: string): PreviewState;
   stop(directory: string): Promise<PreviewState>;
   stopAll(): Promise<void>;
+  /** The apps being served right now. */
+  list(): { directory: string; url: string }[];
 }
 
 /**
@@ -189,6 +191,10 @@ export function createPreviewManager(options: {
         await closed(entry);
       }
       return snapshot(entry);
+    },
+
+    list() {
+      return [...entries].flatMap(([directory, entry]) => (entry.exited ? [] : [{ directory, url: entry.url }]));
     },
 
     async stopAll() {

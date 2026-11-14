@@ -14,6 +14,7 @@ function fakeContext() {
       tools: { register: (tool) => { tools.push(tool); return () => {}; } },
       skills: { register: (skill) => { skills.push(skill); return () => {}; } },
       effect: (setup) => { dispose = setup(); },
+      get: () => undefined,
     },
   };
 }

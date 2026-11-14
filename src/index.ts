@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-skill';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { readFileSync } from 'node:fs';
+import { registerHomeApi } from './home-api.js';
 import { createPreviewManager } from './preview.js';
 import { DESIGN_SYSTEMS, scaffold, type DesignSystem } from './scaffold.js';
 import { schemaSync } from './schema-sync.js';
@@ -64,5 +65,6 @@ export function apply(ctx: Context): void {
 
   // Registrations are released with the plugin's fiber; the dev servers are
   // child processes and must be stopped explicitly.
-  ctx.effect(() => () => { void previews.stopAll(); });
+  const removeRoutes = registerHomeApi(ctx, previews);
+  ctx.effect(() => () => { removeRoutes(); void previews.stopAll(); });
 }

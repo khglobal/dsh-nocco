@@ -1,7 +1,7 @@
 {
   "name": "dsh-nocco",
   "version": "0.1.0",
-  "description": "Build Vue 3 + Element Plus web apps from chat: a scaffold tool, a local Vite preview tool and a build skill.",
+  "description": "Build web systems from chat: design-system templates with sign-in, roles and stored data, a Nocco home page and a live preview.",
   "type": "module",
   "license": "MIT",
   "icon": "./icon.svg",
@@ -75,7 +75,10 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-client-ui-slots",
-        "@deepseek-ai/dsh-client-ui-tool"
+        "@deepseek-ai/dsh-client-ui-tool",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
       ]
     }
   }
