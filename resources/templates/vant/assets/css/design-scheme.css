@@ -9,6 +9,4 @@
   --nocco-success: #07c160;
   --nocco-warning: #ff976a;
   --nocco-error: #ee0a24;
-  /* Vant CSS variable overrides so global theming follows the scheme */
-  --van-primary-color: var(--nocco-primary);
 }

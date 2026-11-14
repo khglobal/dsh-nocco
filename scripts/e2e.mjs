@@ -73,7 +73,7 @@ try {
     expect(anonymous.status !== 401, `${designSystem}: with sign-in off a signed-out request was still refused`);
     setSignIn('required');
 
-    console.log(`[e2e] ${designSystem}: install ${((installed - started) / 1000).toFixed(1)} s (${made.packageManager}), first page ${((ready - installed) / 1000).toFixed(1)} s, sign-in ok, ${state.url}`);
+    console.log(`[e2e] ${designSystem}: install ${((installed - started) / 1000).toFixed(1)} s (${made.packageManager}), first page ${((ready - installed) / 1000).toFixed(1)} s, sign-in ok, ${open.url}`);
     if (hold) console.log(`[e2e] ${designSystem}: admin password ${made.admin.password}`);
   }
   if (hold) await new Promise(() => {});

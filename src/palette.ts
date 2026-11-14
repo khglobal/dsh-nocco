@@ -32,6 +32,17 @@ export const FONT_STACKS: Readonly<Record<string, string>> = {
   fantasy: "Papyrus, 'Yuanti SC', fantasy",
 };
 
+/** Black or white, whichever reads better on the given `#rrggbb` colour. */
+export function onColour(hex: string): string {
+  const channel = (offset: number): number => {
+    const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  // The luminance at which black and white text contrast equally.
+  return luminance > 0.179 ? '#111111' : '#ffffff';
+}
+
 /** The font stack recorded in a design-scheme.css, if it has one. */
 export const fontIn = (css: string): string | undefined => /--nocco-font:\s*([^;]+);/.exec(css)?.[1]?.trim();
 
@@ -50,7 +61,8 @@ export function paletteCss(palette: Palette, font?: string): string {
   --nocco-border: ${palette.border};
   --nocco-success: #10b981;
   --nocco-warning: #f59e0b;
-  --nocco-error: #ef4444;${font ? `\n  --nocco-font: ${font};` : ''}
+  --nocco-error: #ef4444;
+  --nocco-on-primary: ${onColour(palette.primary)};${font ? `\n  --nocco-font: ${font};` : ''}
 }
 `;
 }

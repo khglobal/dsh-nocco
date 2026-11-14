@@ -157,9 +157,10 @@ export function createPreviewTab(api: PreviewTabApi): (props: { useTabInfo?: () 
         h('a', { href: url, target: '_blank', rel: 'noopener', style: { ...button, textDecoration: 'none' } }, strings.external),
         h('button', { type: 'button', 'aria-pressed': inspecting, title: strings.inspecting, onClick: () => inspect(!inspecting), style: inspecting ? pressed : button }, strings.inspect),
         h('span', { style: { flex: 1 } }),
-        h('span', { role: 'group', 'aria-label': strings.palette, style: { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '0 6px' } },
+        h('span', { role: 'group', 'aria-label': strings.palette, title: strings.paletteHint, style: { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '0 6px' } },
+          h('span', { style: { fontSize: 12, opacity: 0.65, marginRight: -2 } }, strings.palette),
           ...PALETTES.map((item) => h('button', {
-            key: item.id, type: 'button', title: item.id, 'aria-label': `${strings.palette}: ${item.id}`, 'aria-pressed': palette === item.id,
+            key: item.id, type: 'button', title: `${strings.palette}: ${item.id}`, 'aria-label': `${strings.palette}: ${item.id}`, 'aria-pressed': palette === item.id,
             onClick: () => { setPalette(item.id); void api.setPalette(url, item).catch(() => setPalette(undefined)); },
             style: {
               width: 14, height: 14, borderRadius: 999, padding: 0, cursor: 'pointer', border: 0, outlineOffset: 4,

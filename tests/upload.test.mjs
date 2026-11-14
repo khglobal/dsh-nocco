@@ -39,3 +39,11 @@ test('recolouring keeps the font recorded in the scheme', () => {
   assert.equal(fontIn(css), 'Georgia, serif');
   assert.equal(fontIn(paletteCss(navy)), undefined);
 });
+
+test('text on the main colour is whichever of black and white reads better', async () => {
+  const { onColour } = await import('../dist/palette.js');
+  assert.equal(onColour('#24456D'), '#ffffff');
+  assert.equal(onColour('#8ea2ff'), '#111111');
+  const { id: _id, ...night } = PALETTES.find((palette) => palette.id === 'night');
+  assert.match(paletteCss(night), /--nocco-on-primary: #111111;/);
+});

@@ -1,5 +1,9 @@
 import type { Config } from 'tailwindcss';
 
+/** A palette colour as a Tailwind colour that still accepts an opacity, such as `bg-primary/80`. */
+const tone = (name: string, fallback: string): string =>
+  `color-mix(in srgb, var(--nocco-${name}, ${fallback}) calc(<alpha-value> * 100%), transparent)`;
+
 export default {
   darkMode: 'class',
   content: [
@@ -38,40 +42,22 @@ export default {
           'monospace',
         ],
       },
+      // Every theme colour comes from the app's palette in
+      // assets/css/design-scheme.css, so the components follow the colour
+      // scheme the user picks. `tone` keeps Tailwind's opacity modifiers working.
       colors: {
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
-        primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
-        },
-        secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
-        },
-        destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
-        },
-        muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
-        },
-        accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
-        },
-        popover: {
-          DEFAULT: 'hsl(var(--popover))',
-          foreground: 'hsl(var(--popover-foreground))',
-        },
-        card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
-        },
+        border: tone('border', '#e5e7eb'),
+        input: tone('border', '#e5e7eb'),
+        ring: tone('primary', '#9E7FFF'),
+        background: tone('bg', '#ffffff'),
+        foreground: tone('text', '#171717'),
+        primary: { DEFAULT: tone('primary', '#9E7FFF'), foreground: tone('on-primary', '#ffffff') },
+        secondary: { DEFAULT: tone('surface', '#f7f7f7'), foreground: tone('text', '#171717') },
+        destructive: { DEFAULT: tone('error', '#ef4444'), foreground: '#ffffff' },
+        muted: { DEFAULT: tone('surface', '#f7f7f7'), foreground: tone('text-secondary', '#4b5563') },
+        accent: { DEFAULT: tone('surface', '#f7f7f7'), foreground: tone('text', '#171717') },
+        popover: { DEFAULT: tone('bg', '#ffffff'), foreground: tone('text', '#171717') },
+        card: { DEFAULT: tone('bg', '#ffffff'), foreground: tone('text', '#171717') },
       },
       borderRadius: {
         lg: 'var(--radius)',
