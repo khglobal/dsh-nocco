@@ -137,6 +137,38 @@ export function createEnhancer(get: Lookup, ask: typeof askModel = askModel) {
   };
 }
 
+/** DSH's speech service, present while its voice input bundle is enabled. */
+interface Speech {
+  snapshot(): { providers: readonly { id?: string; preparation?: { phase?: string } }[]; selection?: { providerId?: string } };
+  resolve(request: { audio: Uint8Array }): unknown;
+  transcribe(spec: unknown, signal: AbortSignal): Promise<{ text: string }>;
+}
+
+/** The largest recording accepted for transcription, in bytes; matches the speech service's default. */
+export const VOICE_LIMIT = 4 * 1024 * 1024;
+
+/** Voice input through DSH's own speech service: whether it is ready, and transcription of one recording. */
+export function createVoice(get: Lookup) {
+  const ready = (speech: Speech): boolean => {
+    const { providers, selection } = speech.snapshot();
+    const chosen = providers.find((provider) => provider.id === selection?.providerId) ?? providers[0];
+    return ['ready', 'standby'].includes(chosen?.preparation?.phase ?? '');
+  };
+  return {
+    available(): boolean {
+      const speech = get('speechToText') as Speech | undefined;
+      try { return Boolean(speech && ready(speech)); } catch { return false; }
+    },
+    async transcribe(audio: Uint8Array): Promise<{ text: string }> {
+      const speech = get('speechToText') as Speech | undefined;
+      if (!speech) throw new Error('voice input is not enabled in DSH');
+      if (audio.byteLength > VOICE_LIMIT) throw new Error('the recording is too long');
+      const { text } = await speech.transcribe(speech.resolve({ audio }), AbortSignal.timeout(120000));
+      return { text: text.trim() };
+    },
+  };
+}
+
 /** Suggested builds for the home page, cached per language until refreshed. */
 export function createSuggester(get: Lookup, ask: typeof askModel = askModel) {
   const cache = new Map<Lang, SuggestionsResult>();
@@ -187,7 +219,8 @@ export async function saveUpload(name: string, bytes: Uint8Array, root = join(tm
  * service does; without it the pages fall back on their own.
  */
 export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoints: Checkpoints): void {
-  const services = trackServices(ctx, ['llm', 'agentDefaultModel', 'workspaceRegistry', 'sessionQuery']);
+  const services = trackServices(ctx, ['llm', 'agentDefaultModel', 'workspaceRegistry', 'sessionQuery', 'speechToText']);
+  const voice = createVoice(services);
   const suggest = createSuggester(services);
   const enhance = createEnhancer(services);
   const handle = (work: (body: Record<string, unknown>) => Promise<unknown>) => async (request: Request): Promise<Response> => {
@@ -221,6 +254,21 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoi
           try {
             const name = decodeURIComponent(request.headers.get('x-nocco-filename') ?? '');
             return json(await saveUpload(name, new Uint8Array(await request.arrayBuffer())));
+          } catch (error) {
+            return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+          }
+        },
+      }),
+      connection.fetch.register({
+        path: '/api/nocco.voice', methods: ['GET'],
+        fetch: handle(async () => ({ available: voice.available() })),
+      }),
+      connection.fetch.register({
+        // The body is one WAV recording.
+        path: '/api/nocco.transcribe', methods: ['POST'], requestBody: 'buffered',
+        fetch: async (request) => {
+          try {
+            return json(await voice.transcribe(new Uint8Array(await request.arrayBuffer())));
           } catch (error) {
             return json({ error: error instanceof Error ? error.message : String(error) }, 400);
           }

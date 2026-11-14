@@ -18,6 +18,8 @@ export interface ScaffoldInput {
   designSystem: DesignSystem;
   /** An offered palette's id or a `#rrggbb` main colour; the template's own colours when absent or unknown. */
   palette?: string;
+  /** False opens the app to everyone; otherwise every page and route needs a signed-in user. */
+  signIn?: boolean;
   /** One of the offered font names; the template's own font when absent or unknown. */
   font?: string;
 }
@@ -30,6 +32,8 @@ export interface ScaffoldResult {
   installOutput: string;
   /** The first account, created when the app first starts. */
   admin: { username: string; password: string };
+  /** Whether visitors must sign in before they can use the app. */
+  signIn: 'required' | 'off';
 }
 
 const defaultTemplatesDir = fileURLToPath(new URL('../resources/templates', import.meta.url));
@@ -93,6 +97,7 @@ export async function scaffold(
   await replaceIn(join(directory, 'nuxt.config.ts'), [
     ['__APP_NAME_JSON__', JSON.stringify(appName)],
     ['__APP_LANG__', language],
+    ['__APP_SIGN_IN__', input.signIn === false ? 'off' : 'required'],
   ]);
   await replaceIn(join(directory, 'package.json'), [['__APP_SLUG__', slug(appName)]]);
 
@@ -103,7 +108,7 @@ export async function scaffold(
     { mode: 0o600 },
   );
 
-  const base = { directory, designSystem, admin };
+  const base = { directory, designSystem, admin, signIn: input.signIn === false ? 'off' as const : 'required' as const };
   const packageManager = (['pnpm', 'npm'] as const).find((name) => run(name, ['--version'], directory).status === 0) ?? null;
   if (!packageManager) {
     return { ...base, packageManager, installed: false, installOutput: 'pnpm or npm was not found on this machine; install one and run its install command in the app directory.' };

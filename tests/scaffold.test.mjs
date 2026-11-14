@@ -110,3 +110,15 @@ test('a font is recorded beside the colours, with or without a palette', async (
   assert.match(css(both), /--nocco-primary: #24456D;/);
   assert.equal(css(unknown), css(plain));
 });
+
+test('sign-in is required unless the app is created open', async () => {
+  const config = (dir) => readFileSync(join(dir, 'nuxt.config.ts'), 'utf8');
+  const closed = fresh(), open = fresh();
+  const required = await scaffold(input(closed), { run: ok() });
+  const off = await scaffold(input(open, { signIn: false }), { run: ok() });
+  assert.equal(required.signIn, 'required');
+  assert.match(config(closed), /signIn: 'required'/);
+  assert.equal(off.signIn, 'off');
+  assert.match(config(open), /signIn: 'off'/);
+  assert.doesNotMatch(config(open), /__APP_/);
+});

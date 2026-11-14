@@ -1,4 +1,4 @@
-import { createElement as h, useCallback, useEffect, useState, type CSSProperties, type ReactElement } from 'react';
+import { createElement as h, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import { PALETTES, type Palette } from './palette.js';
 import { pageLang, text, type Strings } from './text.js';
 
@@ -7,6 +7,8 @@ export interface CheckpointItem { id: string; label: string; time: number; files
 export interface PreviewTabApi {
   /** Recolour the app served at this address. */
   setPalette(url: string, palette: Palette): Promise<void>;
+  /** Put text into the open session's message box. */
+  insert(text: string): void;
   /** List the checkpoints of the app served at this address, after an optional save or restore. */
   checkpoints(url: string, action: 'list' | 'save' | 'restore', id?: string): Promise<CheckpointItem[]>;
 }
@@ -20,6 +22,18 @@ export const button: CSSProperties = {
 };
 const pressed: CSSProperties = { ...button, borderColor: 'currentColor', fontWeight: 600 };
 const solid: CSSProperties = { ...button, background: ACCENT, borderColor: ACCENT, color: '#fff' };
+
+/** What the app reports about an element the user picked in it. */
+export interface PickedElement { tag: string; text: string; classes: string; file: string; page: string; }
+
+/** The line that tells the agent which element the user picked, in the page's language. */
+export function describePicked(element: PickedElement, strings: Pick<Strings, 'pickedLine' | 'pickedPage' | 'pickedFile'>): string {
+  const parts = [`<${element.tag}${element.classes ? ` class="${element.classes}"` : ''}>`];
+  if (element.text) parts.push(`"${element.text}"`);
+  parts.push(`${strings.pickedPage} ${element.page}`);
+  if (element.file) parts.push(`${strings.pickedFile} ${element.file}`);
+  return `${strings.pickedLine}${parts.join(' · ')}\n`;
+}
 
 /** A short account of how long ago a moment was, in the given language. */
 export function ago(seconds: number, now: number, lang: string): string {
@@ -105,6 +119,31 @@ export function createPreviewTab(api: PreviewTabApi): (props: { useTabInfo?: () 
     const [generation, setGeneration] = useState(0);
     const [palette, setPalette] = useState<string | undefined>();
     const [history, setHistory] = useState(false);
+    const [inspecting, setInspecting] = useState(false);
+    const frame = useRef<HTMLIFrameElement | null>(null);
+    // The app answers a pick request with the element the user clicked, or nothing when they cancel.
+    useEffect(() => {
+      if (!url) return undefined;
+      const origin = new URL(url).origin;
+      const receive = (event: MessageEvent): void => {
+        if (event.origin !== origin || event.source !== frame.current?.contentWindow || event.data?.type !== 'nocco:picked') return;
+        setInspecting(false);
+        const picked = event.data.element as PickedElement | null;
+        if (picked && typeof picked.tag === 'string') {
+          api.insert(describePicked({
+            tag: String(picked.tag).slice(0, 40), text: String(picked.text ?? '').slice(0, 80), classes: String(picked.classes ?? '').slice(0, 120),
+            file: String(picked.file ?? '').slice(0, 300), page: String(picked.page ?? '').slice(0, 200),
+          }, strings));
+        }
+      };
+      window.addEventListener('message', receive);
+      return () => window.removeEventListener('message', receive);
+    }, [url, strings]);
+    const inspect = (on: boolean): void => {
+      if (!url) return;
+      setInspecting(on);
+      frame.current?.contentWindow?.postMessage({ type: 'nocco:inspect', on }, new URL(url).origin);
+    };
     if (!url) return h('div', { style: { padding: 24, fontSize: 13, opacity: 0.7 } }, strings.noPreview);
     const reload = (): void => setGeneration((current) => current + 1);
 
@@ -116,6 +155,7 @@ export function createPreviewTab(api: PreviewTabApi): (props: { useTabInfo?: () 
         }, strings[id])),
         h('button', { type: 'button', onClick: reload, style: button }, strings.reload),
         h('a', { href: url, target: '_blank', rel: 'noopener', style: { ...button, textDecoration: 'none' } }, strings.external),
+        h('button', { type: 'button', 'aria-pressed': inspecting, title: strings.inspecting, onClick: () => inspect(!inspecting), style: inspecting ? pressed : button }, strings.inspect),
         h('span', { style: { flex: 1 } }),
         h('span', { role: 'group', 'aria-label': strings.palette, style: { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '0 6px' } },
           ...PALETTES.map((item) => h('button', {
@@ -131,9 +171,10 @@ export function createPreviewTab(api: PreviewTabApi): (props: { useTabInfo?: () 
         ),
         h('button', { type: 'button', 'aria-pressed': history, onClick: () => setHistory((open) => !open), style: history ? pressed : button }, strings.history),
       ),
+      inspecting ? h('div', { role: 'status', style: { padding: '5px 10px', fontSize: 12, color: '#fff', background: ACCENT } }, strings.inspecting) : null,
       h('div', { style: { flex: 1, minHeight: 0, display: 'flex' } },
         h('div', { style: { flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center', background: 'rgba(128,128,128,0.12)' } },
-          h('iframe', { key: generation, src: url, title: strings.previewTitle, style: { width, maxWidth: '100%', height: '100%', border: 0, background: '#fff' } }),
+          h('iframe', { ref: frame, key: generation, src: url, title: strings.previewTitle, style: { width, maxWidth: '100%', height: '100%', border: 0, background: '#fff' } }),
         ),
         history ? h(History, { url, api, strings, lang, onRestored: reload }) : null,
       ),

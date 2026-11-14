@@ -42,7 +42,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'nocco_scaffold',
-    description: 'Create a new web system from a Nocco template in an empty directory and install its dependencies. The app comes with sign-in, roles and a SQLite database. Returns the admin account for the first sign-in. Fails if the directory is not empty.',
+    description: 'Create a new web system from a Nocco template in an empty directory and install its dependencies. The app comes with sign-in, roles and a SQLite database; sign-in can be switched off for an app anyone may open. Returns the admin account for the first sign-in. Fails if the directory is not empty.',
     parameters: {
       directory: { type: 'string', required: true, description: 'Absolute path of the directory to create the app in' },
       appName: { type: 'string', required: true, description: 'Name shown in the page title' },
@@ -50,6 +50,7 @@ export function apply(ctx: Context): void {
       designSystem: { type: 'string', description: 'antdv (Ant Design Vue, desktop admin systems), shadcn (shadcn with Tailwind, modern web apps) or vant (Vant, mobile apps). Defaults to antdv' },
       palette: { type: 'string', description: 'Colour palette of the app: violet, navy, emerald, amber, rose, night, or a #rrggbb main colour. Defaults to the template\'s own colours' },
       font: { type: 'string', description: 'Font of the app: sans-serif, serif, monospace, cursive or fantasy. Defaults to the template\'s own font' },
+      signIn: { type: 'string', description: 'required (the default): every page and server route needs a signed-in user. off: the app opens straight to its first page for anyone' },
     },
     output: json,
     async execute(args) {
@@ -60,6 +61,7 @@ export function apply(ctx: Context): void {
         designSystem: DESIGN_SYSTEMS.includes(args.designSystem as DesignSystem) ? (args.designSystem as DesignSystem) : 'antdv',
         palette: args.palette,
         font: args.font,
+        signIn: args.signIn !== 'off',
       });
       // The untouched template is the first point the user can return to.
       await checkpoints.save(created.directory, args.appName).catch(() => undefined);

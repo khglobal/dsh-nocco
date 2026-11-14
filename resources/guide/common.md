@@ -6,6 +6,9 @@ Layout
 - `app.vue`, `nuxt.config.ts`, `plugins/`, `middleware/`, `server/middleware/`, `server/utils/`, `server/plugins/seed-admin.ts`, `server/api/auth/`, `server/db/index.ts` are the shell.
 - You write in `pages/`, `components/`, `composables/`, `layouts/`, `server/api/`, `server/db/schema.ts`, and new files under `server/plugins/` and `server/utils/`.
 
+Sign-in
+- The tool result's `signIn` says whether visitors must sign in (`required`) or the app is open to everyone (`off`).
+
 Auto-imports (no import statement needed)
 - Vue and Nuxt APIs, everything in `components/`, `composables/` and `server/utils/`.
 - Pages: `useAuth()` returns `{ user, loaded, refresh, login, logout, hasRole }`; `user.value` is `{ username, role } | null`.

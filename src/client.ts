@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis';
-import { createElement, useEffect, type ReactElement } from 'react';
+import { createElement, useEffect, useSyncExternalStore, type ReactElement } from 'react';
 import { createHome, HomeIcon } from './home.js';
 import type { Palette } from './palette.js';
 import { button, createPreviewTab, type CheckpointItem } from './preview-tab.js';
@@ -82,18 +82,31 @@ export function apply(context: Context): void {
   let pending: { draft: string; at: number } | undefined;
   const compact = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
+  // Text the preview wants put into the open session's message box.
+  const inserts: string[] = [];
+  const listeners = new Set<() => void>();
+  let insertVersion = 0;
+  const insertIntoComposer = (value: string): void => {
+    inserts.push(value);
+    insertVersion += 1;
+    for (const listener of listeners) listener();
+  };
+  const subscribeInserts = (listener: () => void): (() => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
+
   /**
-   * Sends the home page's draft once the new session's composer holds it.
-   * It renders nothing; it lives in the composer because that is where a
-   * session hands a plugin the action that submits its input.
+   * The plugin's hand in a session's composer. It renders nothing; it lives
+   * there because that is where a session gives a plugin the actions that
+   * edit and submit its input. It sends the home page's draft once the new
+   * session holds it, and inserts text the preview asks for.
    */
-  function AutoSend(props: unknown): null {
+  function ComposerBridge(props: unknown): null {
     const session = props as {
       useInput?: <T>(select: (state: { draft: string; phase: string }) => T) => T;
-      inputActions?: { submit(): void };
+      inputActions?: { submit(): void; captureInsertion(): unknown; insertText(text: string, span: unknown): boolean };
     };
     const draft = session.useInput?.((state) => state.draft) ?? '';
     const phase = session.useInput?.((state) => state.phase) ?? '';
+    const version = useSyncExternalStore(subscribeInserts, () => insertVersion);
     useEffect(() => {
       if (!pending) return;
       // A draft that never arrives must not be sent later, when the user has typed something else.
@@ -102,10 +115,15 @@ export function apply(context: Context): void {
       pending = undefined;
       session.inputActions?.submit();
     }, [draft, phase]);
+    useEffect(() => {
+      const actions = session.inputActions;
+      if (!actions || inserts.length === 0) return;
+      for (const value of inserts.splice(0)) actions.insertText(value, actions.captureInsertion());
+    }, [version]);
     return null;
   }
   ctx.slots.inject('conversation.input.overlay', () =>
-    ctx.slots.register({ name: 'conversation.input.overlay', id: 'nocco-autosend', order: 99 }, AutoSend));
+    ctx.slots.register({ name: 'conversation.input.overlay', id: 'nocco-bridge', order: 99 }, ComposerBridge));
 
   // Home page: needs the layout service to be selectable from the sidebar.
   ctx.inject(['layout', 'uiWorkspace'], (inner) => {
@@ -117,6 +135,12 @@ export function apply(context: Context): void {
         const response = await fetch('api/nocco.upload', { method: 'POST', headers: { 'x-nocco-filename': encodeURIComponent(file.name) }, body: file });
         if (!response.ok) throw new Error(`upload returned ${response.status}`);
         return await response.json() as { name: string; path: string };
+      },
+      voiceAvailable: async () => (await fetch('api/nocco.voice').then((response) => response.json()) as { available?: boolean }).available === true,
+      transcribe: async (wav) => {
+        const response = await fetch('api/nocco.transcribe', { method: 'POST', headers: { 'content-type': 'audio/wav' }, body: new Blob([wav.slice()]) });
+        if (!response.ok) throw new Error(`transcription returned ${response.status}`);
+        return (await response.json() as { text: string }).text;
       },
       enhance: async (request) => (await post<{ text: string }>('api/nocco.enhance', { text: request })).text,
       start: (draft) => {
@@ -136,6 +160,7 @@ export function apply(context: Context): void {
   ctx.inject(['sidebarRight', 'sidebarRightTabs'], (inner) => {
     const PreviewTab = createPreviewTab({
       setPalette: async (url: string, palette: Palette) => { await post('api/nocco.palette', { url, palette }); },
+      insert: insertIntoComposer,
       checkpoints: async (url, action, id) => (await post<{ checkpoints: CheckpointItem[] }>('api/nocco.checkpoints', { url, action, id })).checkpoints,
     });
     const tabs = inner.get('sidebarRightTabs') as SidebarRightTabs;

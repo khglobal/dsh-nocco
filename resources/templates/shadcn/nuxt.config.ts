@@ -3,8 +3,10 @@ export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: false },
   app: { head: { title: __APP_NAME_JSON__, htmlAttrs: { lang: '__APP_LANG__' } } },
-  // The language the app was created in; shell pages read it for their own text.
-  runtimeConfig: { public: { lang: '__APP_LANG__' } },
+  // lang: the language the app was created in; shell pages read it for their own text.
+  // signIn: 'required' sends signed-out visitors to /login and closes /api to them;
+  // 'off' opens the app to everyone, leaving role checks to the routes that call them.
+  runtimeConfig: { public: { lang: '__APP_LANG__', signIn: '__APP_SIGN_IN__' } },
   modules: ['shadcn-nuxt', '@nuxtjs/tailwindcss'],
   shadcn: {
     prefix: '',

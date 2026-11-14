@@ -2,12 +2,17 @@ import { createElement as h, useEffect, useRef, useState, type CSSProperties, ty
 import { buildDraft, FEATURES, FONTS, type DesignSystemId, type FeatureId, type FontId, type Mode } from './draft.js';
 import { FONT_STACKS, PALETTES } from './palette.js';
 import { pageLang, text } from './text.js';
+import { startRecording, type Recording } from './voice.js';
 
 export interface HomeApi {
   /** Suggested builds; `refresh` asks the model again. */
   suggestions(lang: string, refresh: boolean): Promise<{ suggestions: string[]; source: 'model' | 'fallback' }>;
   /** Rewrite a rough request into a clearer one with the user's model. */
   enhance(request: string): Promise<string>;
+  /** Whether DSH's voice input is enabled and ready. */
+  voiceAvailable(): Promise<boolean>;
+  /** Turn one WAV recording into text with DSH's speech service. */
+  transcribe(wav: Uint8Array): Promise<string>;
   /** Keep an attached file where the agent can read it; returns its path there. */
   upload(file: File): Promise<{ name: string; path: string }>;
   /** Open a new session with this draft. */
@@ -38,6 +43,7 @@ const KEYFRAMES = `
 @keyframes noccoAuroraC { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(60px,-40px) scale(1.06); } 66% { transform: translate(90px,20px) scale(1.10); } }
 @keyframes noccoPromptLine { 0% { stroke-dashoffset: 0; visibility: visible; } 28.5% { stroke-dashoffset: -320; visibility: visible; } 29%, 99% { stroke-dashoffset: -320; visibility: hidden; } 99.5% { stroke-dashoffset: 0; visibility: hidden; } 100% { stroke-dashoffset: 0; visibility: visible; } }
 @keyframes noccoTypewriterCaret { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes noccoPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @keyframes noccoSpin { to { transform: rotate(360deg); } }
 @keyframes noccoFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .nocco-home textarea::placeholder { color: var(--nocco-home-faint); }
@@ -136,6 +142,9 @@ const swatches = h('svg', { width: 15, height: 15, viewBox: '0 0 16 16', 'aria-h
   h('circle', { cx: 5.2, cy: 7.4, r: 0.9, fill: 'currentColor' }), h('circle', { cx: 7.4, cy: 4.800, r: 0.9, fill: 'currentColor' }), h('circle', { cx: 10.600, cy: 5.600, r: 0.9, fill: 'currentColor' }));
 const paperclip = h('svg', { width: 15, height: 15, viewBox: '0 0 16 16', 'aria-hidden': true, style: { opacity: 0.75 } },
   h('path', { d: 'M13.200 7.300l-5.300 5.300a3.200 3.200 0 0 1-4.500-4.500l5.600-5.600a2.100 2.100 0 0 1 3 3l-5.600 5.600a1 1 0 0 1-1.500-1.500l5-5', strokeWidth: 1.2, ...stroke }));
+const microphone = h('svg', { width: 15, height: 15, viewBox: '0 0 16 16', 'aria-hidden': true },
+  h('rect', { x: 5.750, y: 1.750, width: 4.500, height: 7.500, rx: 2.250, strokeWidth: 1.2, ...stroke }),
+  h('path', { d: 'M3.500 7.500a4.500 4.500 0 0 0 9 0M8 12v2.250', strokeWidth: 1.2, ...stroke }));
 const caret = h('svg', { width: 10, height: 10, viewBox: '0 0 12 12', 'aria-hidden': true, style: { opacity: 0.6 } }, h('path', { d: 'M3 4.500l3 3 3-3', strokeWidth: 1.4, ...stroke }));
 
 /** The Nocco home page: the Nocco web app's home, with a prompt box, design-system choice and suggested builds. */
@@ -166,6 +175,32 @@ export function createHome(api: HomeApi): () => ReactElement {
         .then((saved) => { if (alive.current) setFiles((current) => [...current, ...saved]); })
         .catch(() => { if (alive.current) setUploadFailed(true); })
         .finally(() => { if (alive.current) setUploading(false); });
+    };
+    // Voice input is offered only while DSH's own voice input is enabled and ready.
+    const [voice, setVoice] = useState<'absent' | 'idle' | 'recording' | 'transcribing'>('absent');
+    const [voiceFailed, setVoiceFailed] = useState(false);
+    const recording = useRef<Recording | undefined>(undefined);
+    useEffect(() => {
+      api.voiceAvailable().then((available) => { if (alive.current && available) setVoice('idle'); }).catch(() => {});
+      return () => recording.current?.cancel();
+    }, []);
+    const toggleVoice = (): void => {
+      setVoiceFailed(false);
+      if (voice === 'idle') {
+        setVoice('recording');
+        startRecording().then((started) => {
+          if (!alive.current) return started.cancel();
+          recording.current = started;
+        }).catch(() => { if (alive.current) { setVoice('idle'); setVoiceFailed(true); } });
+      } else if (voice === 'recording' && recording.current) {
+        const active = recording.current;
+        recording.current = undefined;
+        setVoice('transcribing');
+        active.stop().then((wav) => api.transcribe(wav)).then((spoken) => {
+          if (alive.current && spoken) setRequest((current) => (current.trim() ? `${current.trimEnd()} ${spoken}` : spoken));
+        }).catch(() => { if (alive.current) setVoiceFailed(true); })
+          .finally(() => { if (alive.current) setVoice('idle'); });
+      }
     };
     const paletteColour = PALETTES.find((item) => item.id === palette)?.primary ?? palette;
     const [prompts, setPrompts] = useState<string[]>(() => readCache(lang) ?? []);
@@ -264,6 +299,7 @@ export function createHome(api: HomeApi): () => ReactElement {
             style: { position: 'absolute', right: 6, bottom: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, border: 0, background: 'transparent', color: theme.muted, opacity: canSend || enhancing ? 0.9 : 0.4, cursor: canSend && !enhancing ? 'pointer' : 'default' },
           }, enhancing ? spinner : stars),
           ),
+          voiceFailed ? h('div', { role: 'alert', style: { position: 'relative', padding: '4px 16px 0', fontSize: 12, color: '#b42318' } }, strings.voiceFailed) : null,
           enhanceFailed ? h('div', { role: 'alert', style: { position: 'relative', padding: '4px 16px 0', fontSize: 12, color: '#b42318' } }, strings.enhanceFailed) : null,
           h('div', { style: { position: 'relative', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px 2px', marginTop: 8, borderTop: `1px solid ${theme.line}` } },
             h('div', { style: { position: 'relative' } },
@@ -344,6 +380,13 @@ export function createHome(api: HomeApi): () => ReactElement {
               type: 'button', title: strings.attach, 'aria-label': strings.attach, disabled: uploading, onClick: () => picker.current?.click(),
               style: { display: 'inline-flex', alignItems: 'center', padding: '4px 8px', borderRadius: 6, border: 0, background: 'transparent', color: theme.muted, cursor: 'pointer' },
             }, paperclip),
+            voice === 'absent' ? null : h('button', {
+              type: 'button', disabled: voice === 'transcribing', 'aria-pressed': voice === 'recording',
+              title: voice === 'recording' ? strings.voiceStop : voice === 'transcribing' ? strings.transcribing : strings.voice,
+              'aria-label': voice === 'recording' ? strings.voiceStop : strings.voice, onClick: toggleVoice,
+              style: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 6, border: 0, cursor: voice === 'transcribing' ? 'default' : 'pointer', font: 'inherit', fontSize: 12, color: voice === 'recording' ? '#d92d20' : theme.muted, background: voice === 'recording' ? 'rgba(217,45,32,0.10)' : 'transparent' },
+            }, voice === 'transcribing' ? spinner : microphone,
+              voice === 'recording' ? h('span', { 'aria-hidden': true, style: { width: 7, height: 7, borderRadius: 999, background: '#d92d20', animation: 'noccoPulse 1s ease-in-out infinite' } }) : null),
             h('span', { style: { flex: 1 } }),
             h('div', { role: 'tablist', style: { display: 'inline-flex', padding: 2, borderRadius: 6, border: `1px solid ${theme.line}`, background: theme.hover } },
               ...(['discuss', 'build'] as const).map((id) => h('button', {

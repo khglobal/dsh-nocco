@@ -12,8 +12,13 @@ to an empty directory, a name, and a design system: `antdv` for desktop admin
 systems, `shadcn` for modern web apps, `vant` for mobile apps. The design
 system is fixed once the app exists. When the request names a design system,
 a palette or a font, pass them to the tool as given. A style the request
-names describes how the interface you build should look. The tool returns the admin account for
-the first sign-in; tell the user that username and password. It also returns
+names describes how the interface you build should look. Sign-in exists to tell
+people apart and to protect what they store. Decide from the request whether
+this system needs that: when it is something anyone may open and use without
+an account, create it with sign-in off, so the preview opens on the thing
+itself and not on a sign-in page. The tool returns the admin account for the
+first sign-in; when sign-in is required, tell the user that username and
+password. It also returns
 a guide to what the template provides. Rely on that guide: the shell, the
 sign-in flow and the component registration are already tested, so do not
 read, inspect or test them before building.
@@ -80,9 +85,13 @@ the same at any folder depth. Pages never touch the database directly.
 
 ## Sign-in and roles
 
-Every page except `/login` requires a signed-in user, and every `/api` route
-except the sign-in routes rejects signed-out requests. You do not add checks
-for that.
+In an app created with sign-in required, every page except `/login` requires
+a signed-in user, and every `/api` route except the sign-in routes rejects
+signed-out requests. You do not add checks for that. In an app created with
+sign-in off, pages and routes are open, and the role checks below are how a
+part of it is kept for signed-in people. The setting is `signIn` under
+`runtimeConfig.public` in `nuxt.config.ts`; change it there if the user later
+wants the other behaviour.
 
 To restrict a server route to certain roles, call
 `await requireRole(event, ...)` with the allowed role names at the top of the
@@ -106,6 +115,13 @@ the app directory as well and every row is saved to a data file inside the
 app. Design the tables from the reported columns, and load the rows from
 that data file in a server plugin that fills a table only while it is empty.
 The rows never need to be retyped or passed through you.
+
+## Elements the user points at
+
+The user can pick an element in the preview. Their message then carries a
+line naming it: its tag and classes, its text, the page it is on and the
+component file that renders it. Apply what they ask to that element, starting
+from that file.
 
 ## Checkpoints
 

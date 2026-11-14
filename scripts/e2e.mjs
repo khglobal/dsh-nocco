@@ -1,6 +1,8 @@
 // Real scaffold, real install, real Nuxt dev server, real sign-in.
 // Run with: npm run e2e [-- antdv shadcn vant] [--hold] [--en]
+import { readFileSync, writeFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DESIGN_SYSTEMS, scaffold } from '../dist/scaffold.js';
 import { createPreviewManager } from '../dist/preview.js';
@@ -58,6 +60,18 @@ try {
     expect(collected.json?.errors?.[0]?.message === 'TypeError: probe', `${designSystem}: the reported page error was not returned`);
     const emptied = await call(state.url, '/api/_nocco/errors');
     expect(emptied.json?.errors?.length === 0, `${designSystem}: page errors were not cleared after being read`);
+
+    // Signed out, a required-sign-in app refuses any /api route; the same app with sign-in off does not.
+    const closed = await call(state.url, '/api/_probe-missing');
+    expect(closed.status === 401, `${designSystem}: a signed-out request to a protected route returned ${closed.status}`);
+    await previews.stop(directory);
+    const config = join(directory, 'nuxt.config.ts');
+    const setSignIn = (value) => writeFileSync(config, readFileSync(config, 'utf8').replace(/signIn: '(required|off)' \}/, `signIn: '${value}' }`));
+    setSignIn('off');
+    const open = await previews.start(directory);
+    const anonymous = await call(open.url, '/api/_probe-missing');
+    expect(anonymous.status !== 401, `${designSystem}: with sign-in off a signed-out request was still refused`);
+    setSignIn('required');
 
     console.log(`[e2e] ${designSystem}: install ${((installed - started) / 1000).toFixed(1)} s (${made.packageManager}), first page ${((ready - installed) / 1000).toFixed(1)} s, sign-in ok, ${state.url}`);
     if (hold) console.log(`[e2e] ${designSystem}: admin password ${made.admin.password}`);
