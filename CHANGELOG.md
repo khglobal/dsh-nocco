@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.2
+
+- Apps are created in DSH's own language: the Nocco page states it in every
+  request, and the agent must always choose a language (it no longer falls
+  back to Chinese).
+- The templates' starting pages show one language, the app's.
+- New introduction with screenshots in both READMEs; the screenshots ship in
+  the package so DSH's plugin page shows them.
+
 ## 0.1.1
 
 - Retro design system: the page frame is no longer fixed. Navigation sits on

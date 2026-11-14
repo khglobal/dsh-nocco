@@ -41,15 +41,16 @@ Nocco 把 DeepSeek Harness 变成一个构建网页应用的工作台。说出�
 
 ## Nocco 页面
 
-![Nocco 页面：输入框下方可选设计体系、配色、添加文件、讨论/构建切换，再下面是模型生成的建议](docs/screenshots/home.jpg)
+![Nocco 页面：输入框下方可选设计体系、配色、添加文件、讨论/构建切换，再下面是构建建议](docs/screenshots/home.jpg)
 
-输入框下方的建议，由你的模型根据工作区文件名和近期会话标题生成。
+输入框下方会给出可以构建的系统建议，由你的模型根据工作区文件名和近期会话标题
+生成；生成之前先显示示例想法。
 
 ## 设计体系
 
 | Ant Design · 桌面后台 | shadcn · 现代网页 |
 | --- | --- |
-| ![用 Ant Design 体系构建的销售报表](docs/screenshots/antdv.jpg) | ![用 shadcn 体系构建的贪吃蛇游戏](docs/screenshots/shadcn.jpg) |
+| ![用 Ant Design 体系构建的销售看板](docs/screenshots/antdv.jpg) | ![用 shadcn 体系构建的贪吃蛇游戏](docs/screenshots/shadcn.jpg) |
 
 | Retro · 90 年代网页 | Vant · 移动端 |
 | --- | --- |

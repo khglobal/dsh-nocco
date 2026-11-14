@@ -47,16 +47,17 @@ DSH can write a web app without any plugin. Nocco changes what that work is like
 
 ## The Nocco page
 
-![The Nocco page: a prompt box with design system, colour scheme, file attach and the Discuss / Build switch, above suggestions written by your model](docs/screenshots/home.jpg)
+![The Nocco page: a prompt box with design system, colour scheme, file attach and the Discuss / Build switch, above a suggested system to build](docs/screenshots/home.jpg)
 
-The suggestions under the box are written by your model from the names of
-your workspace files and recent sessions.
+The line under the box suggests systems to build. Your model writes the
+suggestions from the names of your workspace files and recent sessions;
+sample ideas are shown until it has.
 
 ## Design systems
 
 | Ant Design · desktop admin | shadcn · modern web |
 | --- | --- |
-| ![A sales report dashboard built with the Ant Design system](docs/screenshots/antdv.jpg) | ![A snake game built with the shadcn system](docs/screenshots/shadcn.jpg) |
+| ![A sales dashboard built with the Ant Design system](docs/screenshots/antdv.jpg) | ![A snake game built with the shadcn system](docs/screenshots/shadcn.jpg) |
 
 | Retro · 1990s web | Vant · mobile |
 | --- | --- |

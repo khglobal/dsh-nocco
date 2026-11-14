@@ -46,7 +46,7 @@ export function apply(ctx: Context): void {
     parameters: {
       directory: { type: 'string', required: true, description: 'Absolute path of the directory to create the app in' },
       appName: { type: 'string', required: true, description: 'Name shown in the page title' },
-      language: { type: 'string', description: 'Interface language of the app: zh-CN or en. Defaults to zh-CN' },
+      language: { type: 'string', required: true, description: 'Interface language of the app: zh-CN or en. The language the request names; when it names none, the language the user is writing in' },
       designSystem: { type: 'string', description: 'antdv (Ant Design Vue, desktop admin systems), shadcn (shadcn with Tailwind, modern web apps), vant (Vant, mobile apps) or retro (the look of a 1990s web page). Defaults to antdv' },
       palette: { type: 'string', description: 'Colour palette of the app: violet, navy, emerald, amber, rose, night, or a #rrggbb main colour. Defaults to the template\'s own colours' },
       font: { type: 'string', description: 'Font of the app: sans-serif, serif, monospace, cursive or fantasy. Defaults to the template\'s own font' },
@@ -57,7 +57,7 @@ export function apply(ctx: Context): void {
       const created = await scaffold({
         directory: args.directory,
         appName: args.appName,
-        language: args.language === 'en' ? 'en' : 'zh-CN',
+        language: /^zh/i.test(args.language.trim()) ? 'zh-CN' : 'en',
         designSystem: DESIGN_SYSTEMS.includes(args.designSystem as DesignSystem) ? (args.designSystem as DesignSystem) : 'antdv',
         palette: args.palette,
         font: args.font,

@@ -19,7 +19,7 @@ export interface DraftChoices {
   files?: readonly string[];
 }
 
-type DraftStrings = Pick<Strings, 'designLine' | 'paletteLine' | 'fontLine' | 'styleLine' | 'modeLine' | 'filesLine' | 'discuss' | FeatureId>;
+type DraftStrings = Pick<Strings, 'languageLine' | 'designLine' | 'paletteLine' | 'fontLine' | 'styleLine' | 'modeLine' | 'filesLine' | 'discuss' | FeatureId>;
 
 /**
  * The draft a Build action puts in a new session: the skill invocation, what
@@ -27,7 +27,8 @@ type DraftStrings = Pick<Strings, 'designLine' | 'paletteLine' | 'fontLine' | 's
  * left at their defaults add no line.
  */
 export function buildDraft(request: string, choices: DraftChoices, strings: DraftStrings): string {
-  const lines = [`${strings.designLine}${choices.designSystem}`];
+  // The app is made in the language DSH itself is showing, unless the request says otherwise.
+  const lines = [`${strings.designLine}${choices.designSystem}`, strings.languageLine];
   if (choices.palette) lines.push(`${strings.paletteLine}${choices.palette}`);
   if (choices.font) lines.push(`${strings.fontLine}${choices.font}`);
   if (choices.features?.length) lines.push(`${strings.styleLine}${choices.features.map((id) => strings[id]).join(', ')}`);

@@ -7,7 +7,9 @@ keep the app running, and check the preview after each change.
 
 ## Start and run
 
-A new system begins with the `nocco_scaffold` tool. Give it an absolute path
+A new system begins with the `nocco_scaffold` tool. Create it in the
+interface language the request names; when it names none, in the language
+the user is writing to you in, and write all of the app's text in that language. Give it an absolute path
 to an empty directory, a name, and a design system: `antdv` for desktop admin
 systems, `shadcn` for modern web apps, `vant` for mobile apps, `retro` for the
 look of a 1990s web page. The design

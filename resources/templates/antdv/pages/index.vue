@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// The page speaks the language the app was created in.
+const zh = useIsChinese();
 // Nocco placeholder — replaced when the AI generates real pages.
 // Design intent: architectural "blueprint" feel. Dashed grid, serif
 // display type, Nocco purple gradient mark. Makes it unmistakable
@@ -35,57 +37,51 @@ const clock = computed(() =>
           <path fill="url(#ng)" d="M66.657 0H28.343a7.948 7.948 0 0 0-6.887 3.979L2.288 37.235a7.948 7.948 0 0 0 0 7.938L21.456 78.43a7.948 7.948 0 0 0 6.887 3.979h38.314a7.948 7.948 0 0 0 6.886-3.98l19.17-33.256a7.948 7.948 0 0 0 0-7.938L73.542 3.98A7.948 7.948 0 0 0 66.657 0Z" />
           <path fill="#fff" fill-rule="evenodd" d="M50.642 59.608c-3.468 0-6.873-1.261-8.827-3.973l-.69 3.198-12.729 6.762 1.374-6.762 9.27-42.04h11.35l-3.279 14.818c2.649-2.9 5.108-3.973 8.26-3.973 6.81 0 11.35 4.477 11.35 12.675 0 8.45-5.233 19.295-16.079 19.295Zm4.351-16.9c0 3.91-2.774 6.874-6.368 6.874-2.018 0-3.847-.757-5.045-2.08l1.766-7.757c1.324-1.324 2.837-2.08 4.603-2.08 2.711 0 5.044 2.017 5.044 5.044Z" />
         </svg>
-        <div class="wordmark">NOCCO · 待构建工区</div>
+        <div class="wordmark">NOCCO · {{ zh ? '待构建工区' : 'WORKSPACE' }}</div>
       </div>
       <div class="meta">
-        <span class="dot" /> UNBUILT CANVAS · {{ clock }}
+        <span class="dot" /> {{ zh ? '空白画布' : 'UNBUILT CANVAS' }} · {{ clock }}
       </div>
     </header>
 
     <main class="stage" :class="{ in: mounted }">
       <div class="measure">
         <div class="stamp">
-          <span>NOT YET BUILT</span>
-          <span>尚未生成</span>
+          <span>{{ zh ? '尚未生成' : 'NOT YET BUILT' }}</span>
         </div>
 
         <h1 class="display">
-          <span>An app will live here.</span>
-          <span class="faint">你的应用将在此处生成</span>
+          <span>{{ zh ? '你的应用将在此处生成' : 'An app will live here.' }}</span>
         </h1>
 
         <p class="lede">
-          This is the blank canvas Nocco hands every new project.
-          Describe what you want in the chat and the page rewrites itself —
-          real components, real data, real routing.
-        </p>
-        <p class="lede zh">
-          这是 Nocco 为每个新项目保留的空白画布。
-          在对话里描述你想要的内容，页面会自动生成 —— 真实组件、真实数据、真实路由。
+          {{ zh
+            ? '这是 Nocco 为每个新项目保留的空白画布。在对话里描述你想要的内容，页面会自动生成：真实组件、真实数据、真实路由。'
+            : 'This is the blank canvas Nocco hands every new project. Describe what you want in the chat and the page rewrites itself: real components, real data, real routing.' }}
         </p>
 
         <div class="cards">
           <article class="card">
             <header>01 / STEP</header>
-            <h3>在对话中描述</h3>
-            <p>Write a prompt — "a dashboard of daily orders" works fine.</p>
+            <h3>{{ zh ? '在对话中描述' : 'Describe it in the chat' }}</h3>
+            <p>{{ zh ? '用一句话说出你想要的系统。' : 'Say what system you want in a sentence.' }}</p>
           </article>
           <article class="card accent">
             <header>02 / STEP</header>
-            <h3>观察热更新</h3>
-            <p>Watch pages, components, and routes appear live in this preview.</p>
+            <h3>{{ zh ? '观察实时更新' : 'Watch it update' }}</h3>
+            <p>{{ zh ? '页面、组件和路由会在这个预览里实时出现。' : 'Pages, components and routes appear live in this preview.' }}</p>
           </article>
           <article class="card">
             <header>03 / STEP</header>
-            <h3>登录使用</h3>
-            <p>Sign in with the admin account and use the system with real, stored data.</p>
+            <h3>{{ zh ? '直接使用' : 'Use it' }}</h3>
+            <p>{{ zh ? '系统可以直接使用，数据真实保存。' : 'Use the system with real, stored data.' }}</p>
           </article>
         </div>
 
         <footer class="sig">
-          <span>Framework</span><b>Nuxt 3 · Ant Design Vue</b>
-          <span>Status</span><b>Awaiting first generation</b>
-          <span>Template</span><b>antdv · desktop</b>
+          <span>{{ zh ? '框架' : 'Framework' }}</span><b>Nuxt 3 · Ant Design Vue</b>
+          <span>{{ zh ? '状态' : 'Status' }}</span><b>{{ zh ? '等待第一次生成' : 'Awaiting first generation' }}</b>
+          <span>{{ zh ? '模板' : 'Template' }}</span><b>antdv · desktop</b>
         </footer>
       </div>
     </main>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// The page speaks the language the app was created in.
+const zh = useIsChinese();
 // Nocco placeholder for the shadcn-vue template — replaced when the AI
 // generates real pages. Minimal/editorial take: one huge typographic
 // statement, a breathing gradient mark, and unmistakable "not built
@@ -49,7 +51,7 @@ onMounted(() => { mounted.value = true; });
           <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#8a5fff] opacity-60"></span>
           <span class="relative inline-flex h-2 w-2 rounded-full bg-[#7645e8]"></span>
         </span>
-        <span class="font-medium text-[#2d1959] dark:text-[#efe7ff]">尚未生成 · Not Built Yet</span>
+        <span class="font-medium text-[#2d1959] dark:text-[#efe7ff]">{{ zh ? '尚未生成' : 'Not built yet' }}</span>
       </div>
     </header>
 
@@ -67,7 +69,7 @@ onMounted(() => { mounted.value = true; });
 
       <!-- Chinese sub-display -->
       <p class="mt-6 font-serif text-2xl font-light leading-snug text-[#5b4888] dark:text-[#b69eff] md:text-3xl">
-        在对话里告诉 Nocco 你想要什么，这个页面会自动变成你的应用。
+        {{ zh ? '在对话里告诉 Nocco 你想要什么，这个页面会自动变成你的应用。' : 'Tell Nocco what you want in the chat, and this page becomes your app.' }}
       </p>
 
       <!-- Three-step hint -->
@@ -75,7 +77,7 @@ onMounted(() => { mounted.value = true; });
         <div class="border-t border-[#e6deff] dark:border-[#1f1538] pt-4">
           <div class="font-mono text-[10px] tracking-widest text-[#8a5fff]">01 · PROMPT</div>
           <p class="mt-2 text-sm leading-relaxed text-[#2d1959] dark:text-[#efe7ff]">
-            Describe what you want in the chat — plain language, English or 中文.
+            {{ zh ? '在对话里用平常的话描述你想要什么。' : 'Describe what you want in the chat, in plain language.' }}
           </p>
         </div>
         <div class="border-t border-[#e6deff] dark:border-[#1f1538] pt-4">

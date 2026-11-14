@@ -8,6 +8,8 @@ import { onMounted, ref } from 'vue';
 
 const mounted = ref(false);
 onMounted(() => { mounted.value = true; });
+// The page speaks the language the app was created in.
+const zh = useIsChinese();
 </script>
 
 <template>
@@ -22,10 +24,10 @@ onMounted(() => { mounted.value = true; });
 
         <div class="chip">
           <span class="ping"><span class="ping-in" /></span>
-          <span>尚未生成 · Not Built</span>
+          <span>{{ zh ? '尚未生成' : 'Not built yet' }}</span>
         </div>
 
-        <h1 class="title">你的应用<br />即将在这里诞生</h1>
+        <h1 class="title">{{ zh ? '你的应用' : 'Your app' }}<br />{{ zh ? '即将在这里诞生' : 'will appear here' }}</h1>
         <p class="subtitle">Your app will be born right here.</p>
       </div>
       <svg class="curve" viewBox="0 0 375 40" preserveAspectRatio="none" aria-hidden="true">
@@ -42,12 +44,12 @@ onMounted(() => { mounted.value = true; });
             <span class="core" />
           </div>
           <div class="status-text">
-            <div class="status-title">等待你的第一条指令</div>
+            <div class="status-title">{{ zh ? '等待你的第一条指令' : 'Waiting for your first request' }}</div>
             <div class="status-sub">Awaiting your first prompt</div>
           </div>
         </div>
         <div class="status-hint">
-          在左侧对话栏里描述你想要做什么 —— 比如"一个记账本"或"员工签到打卡页面"。
+          {{ zh ? '在对话里描述你想要做什么，页面会出现在这里。' : 'Describe what you want in the chat, and its pages will appear here.' }}
         </div>
       </div>
 
@@ -55,24 +57,24 @@ onMounted(() => { mounted.value = true; });
         <div class="step">
           <div class="num">01</div>
           <div class="step-copy">
-            <div class="step-title">描述 · Describe</div>
-            <div class="step-desc">用一句话说清你想要的应用。</div>
+            <div class="step-title">{{ zh ? '描述' : 'Describe' }}</div>
+            <div class="step-desc">{{ zh ? '用一句话说清你想要的应用。' : 'Say what you want in a sentence.' }}</div>
           </div>
         </div>
         <div class="divider" />
         <div class="step">
           <div class="num">02</div>
           <div class="step-copy">
-            <div class="step-title">生成 · Generate</div>
-            <div class="step-desc">Nocco 自动写出页面、路由、数据。</div>
+            <div class="step-title">{{ zh ? '生成' : 'Generate' }}</div>
+            <div class="step-desc">{{ zh ? 'Nocco 自动写出页面、路由、数据。' : 'Nocco writes the pages, routes and data.' }}</div>
           </div>
         </div>
         <div class="divider" />
         <div class="step">
           <div class="num">03</div>
           <div class="step-copy">
-            <div class="step-title">使用 · Use</div>
-            <div class="step-desc">用管理员账号登录，数据真实保存。</div>
+            <div class="step-title">{{ zh ? '使用' : 'Use' }}</div>
+            <div class="step-desc">{{ zh ? '直接使用，数据真实保存。' : 'Use it: what you enter is really stored.' }}</div>
           </div>
         </div>
       </div>
@@ -82,7 +84,7 @@ onMounted(() => { mounted.value = true; });
         <span>·</span>
         <span>Vant Mobile</span>
         <span>·</span>
-        <span>模板未修改</span>
+        <span>{{ zh ? '模板未修改' : 'Template untouched' }}</span>
       </div>
     </main>
   </div>
