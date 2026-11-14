@@ -1,0 +1,52 @@
+{
+  "name": "dsh-nocco",
+  "version": "0.1.0",
+  "description": "Build Vue 3 + Element Plus web apps from chat: a scaffold tool, a local Vite preview tool and a build skill.",
+  "type": "module",
+  "license": "MIT",
+  "icon": "./icon.svg",
+  "repository": { "type": "git", "url": "git+https://github.com/khglobal/dsh-nocco.git" },
+  "keywords": ["dsh", "dsh-plugin", "deepseek-harness", "vue", "element-plus"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./client": "./dist/client.browser.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "dist", "resources", "locale", "cordis.patch.yml", "icon.svg",
+    "README.md", "README.zh.md", "CHANGELOG.md", "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node scripts/build.mjs && node --test tests/*.test.mjs",
+    "e2e": "node scripts/build.mjs && node scripts/e2e.mjs"
+  },
+  "engines": { "node": ">=20", "dsh": ">=0.2.2-rc.1 <0.3.0" },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.5 <5",
+    "@deepseek-ai/dsh-skill": ">=0.2.2-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-tools": ">=0.2.2-rc.1 <0.3.0",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": { "react": { "optional": true } },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.1.0",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-skill": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.3",
+    "@types/node": "22.19.0",
+    "@types/react": "19.2.14",
+    "esbuild": "0.25.12",
+    "react": "19.2.4",
+    "typescript": "5.9.3"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "inject": ["@deepseek-ai/dsh-client-ui-slots", "@deepseek-ai/dsh-client-ui-tool"]
+    }
+  }
+}
