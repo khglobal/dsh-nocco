@@ -27,8 +27,8 @@ async function submit() {
 </script>
 
 <template>
-  <main class="retro-login">
-    <h1 class="retro-login__name">{{ name }}</h1>
+  <main class="retro-login retro-pattern retro-pattern--grid">
+    <RetroMasthead :rays="false">{{ name }}</RetroMasthead>
     <RetroBox :title="t.signIn" class="retro-login__box">
       <form @submit.prevent="submit">
         <RetroField :label="t.username">
@@ -44,17 +44,6 @@ async function submit() {
 </template>
 
 <style>
-.retro-login {
-  min-height: 100vh; box-sizing: border-box; padding: 48px 16px; display: flex; flex-direction: column; align-items: center; gap: 28px;
-  background-color: var(--nocco-surface);
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--nocco-surface) 78%, #000000) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--nocco-surface) 78%, #000000) 1px, transparent 1px);
-  background-size: 26px 26px;
-}
-.retro-login__name {
-  margin: 0; font-family: Impact, 'Arial Black', 'Heiti SC', 'SimHei', var(--retro-sans); font-size: clamp(2rem, 7vw, 3.2rem); letter-spacing: 0.04em; text-transform: uppercase;
-  transform: rotate(-2deg) skewX(-6deg); color: var(--nocco-primary); -webkit-text-stroke: 1px #400000; text-shadow: 2px 2px 0 #ffffff, 4px 4px 0 rgba(0, 0, 0, 0.35);
-}
+.retro-login { min-height: 100vh; box-sizing: border-box; padding: 48px 16px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
 .retro-login__box { width: 100%; max-width: 360px; }
 </style>

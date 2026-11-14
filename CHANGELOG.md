@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1
+
+- Retro design system: the page frame is no longer fixed. Navigation sits on
+  the left, the right, across the top, or is left out; the navigation area and
+  the page each take a grid, dots, stripes, checker or plain backdrop.
+- Voice input: the microphone button now appears when DSH's voice input is
+  ready (the availability check was being refused by the host).
+- Published as `@khglobal/dsh-nocco`.
+
 ## 0.1.0
 
 First release.

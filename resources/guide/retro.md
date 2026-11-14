@@ -1,7 +1,9 @@
 
 Retro (1990s web)
 - Its own small design system, with no component library. Plain HTML is already styled: headings in a serif face, links blue and underlined, inputs and selects bevelled, `hr` as a ruled line.
-- Components, auto-imported: `RetroBox` (props `title`, `tone` of `primary` or `plain`; slot `action`), `RetroButton` (`variant` of `bevel` or `oval`, `type`, `disabled`), `RetroPanel` (`title`), `RetroField` (`label`, `hint`, `error`; the control goes in the slot), `RetroBadge` (`tone`, `blink`), `RetroTicker` (`seconds`).
+- Components, auto-imported: `RetroBox` (props `title`, `tone` of `primary` or `plain`; slot `action`), `RetroButton` (`variant` of `bevel` or `oval`, `type`, `disabled`), `RetroPanel` (`title`), `RetroField` (`label`, `hint`, `error`; the control goes in the slot), `RetroBadge` (`tone`, `blink`), `RetroTicker` (`seconds`), `RetroPage`, `RetroMasthead`.
 - Classes from `assets/css/retro.css`: `retro-table` on a table, `retro-dots` on a list, `retro-row` with `retro-grow` for boxes beside a panel, `retro-stack` for vertical spacing, `retro-muted`, `retro-small`, `retro-center`, `retro-note`.
-- `layouts/default.vue` holds the tiled sidebar, the masthead and the footer; add the system's pages to its `sections` and `footer` link lists.
+- The reference look is a starting point, not a fixed frame. `RetroPage` is the page frame: `nav` places navigation on the `left`, the `right`, across the `top`, or leaves it out with `none`; `navBackdrop` and `backdrop` choose what lies behind the navigation and the page (`grid`, `dots`, `stripes`, `checker`, `plain`; the page also takes `none`); `width` and `centered` shape the content column; the `nav`, `masthead` and `footer` slots are all optional. `RetroMasthead` (`to`, `rays`, `tagline`, `align`) is the slanted title.
+- Any element takes a backdrop with the classes `retro-pattern retro-pattern--grid` (or `dots`, `stripes`, `checker`, `plain`); set `--retro-pattern-colour` on it for another colour.
+- `layouts/default.vue` uses `RetroPage` for every page; arrange it to suit the system, and add its pages to the `sections` and `footer` link lists.
 - Keep the period look: square corners, flat colours from the palette, no soft shadows, gradients or rounded cards. Add a new component in the same manner when the ones above do not cover a need.

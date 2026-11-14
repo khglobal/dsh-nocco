@@ -1,6 +1,6 @@
 {
   "name": "@khglobal/dsh-nocco",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Build web systems from chat: design-system templates with sign-in, roles and stored data, a Nocco home page and a live preview.",
   "type": "module",
   "license": "MIT",

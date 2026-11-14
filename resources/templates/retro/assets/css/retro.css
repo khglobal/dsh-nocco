@@ -53,6 +53,26 @@ table.retro-table tr:nth-child(even) td { background: #f3f3e6; }
 .retro-row > .retro-grow { flex: 1 1 320px; min-width: 0; }
 .retro-stack > * + * { margin-top: 16px; }
 
+/*
+ * Backdrops: tiled patterns for any area. Put `retro-pattern` and one
+ * `retro-pattern--…` class on an element. The pattern is drawn in a darker
+ * shade of `--retro-pattern-colour`, which defaults to the palette's surface colour.
+ */
+.retro-pattern { --retro-pattern-colour: var(--nocco-surface); --retro-pattern-ink: color-mix(in srgb, var(--retro-pattern-colour) 78%, #000000); background-color: var(--retro-pattern-colour); }
+.retro-pattern--plain { background-image: none; }
+.retro-pattern--grid { background-image: linear-gradient(var(--retro-pattern-ink) 1px, transparent 1px), linear-gradient(90deg, var(--retro-pattern-ink) 1px, transparent 1px); background-size: 26px 26px; }
+.retro-pattern--dots { background-image: radial-gradient(var(--retro-pattern-ink) 2px, transparent 2.500px); background-size: 16px 16px; }
+.retro-pattern--stripes { background-image: repeating-linear-gradient(45deg, transparent 0 10px, var(--retro-pattern-ink) 10px 12px); }
+.retro-pattern--checker { background-image: conic-gradient(var(--retro-pattern-ink) 25%, transparent 0 50%, var(--retro-pattern-ink) 0 75%, transparent 0); background-size: 28px 28px; }
+
+/* Navigation link lists, wherever the navigation sits. */
+.retro-nav-section + .retro-nav-section { margin-top: 12px; }
+.retro-nav-title { font-style: italic; font-size: 1.2rem; text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.5); margin-bottom: 2px; }
+.retro-nav-dot { display: inline-block; width: 12px; height: 12px; margin-right: 4px; border-radius: 50%; background: var(--nocco-primary); border: 2px solid #111111; vertical-align: -1px; }
+.retro-nav-user { margin-top: 20px; padding-top: 8px; border-top: 2px groove rgba(255, 255, 255, 0.7); font-size: 0.95rem; }
+.retro-page--nav-top .retro-nav-section + .retro-nav-section, .retro-page--nav-top .retro-nav-user { margin-top: 0; padding-top: 0; border-top: 0; }
+.retro-page--nav-top .retro-nav-user { margin-left: auto; display: flex; gap: 10px; }
+
 @keyframes retro-blink { 0%, 49% { visibility: visible; } 50%, 100% { visibility: hidden; } }
 @keyframes retro-slide { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
 @media (prefers-reduced-motion: reduce) { .retro-blink, .retro-ticker > span { animation: none !important; } }
