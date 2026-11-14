@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Plainer description on the plugin card and in the package.
+
 ## 0.1.4
 
 - DSH's plugin page shows the Chinese description when DSH is in Chinese.

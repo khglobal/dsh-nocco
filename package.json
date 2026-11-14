@@ -1,7 +1,7 @@
 {
   "name": "@khglobal/dsh-nocco",
-  "version": "0.1.4",
-  "description": "Nocco: web application developer workbench for DeepSeek Harness. Build web systems from chat with design-system templates, a live preview, click-to-inspect and one-click undo.",
+  "version": "0.1.5",
+  "description": "Describe a web system in chat and get a working one: admin panels, mobile apps, games. See it live beside the conversation, click any element to change it, start from your Excel data, and undo any step. Four design styles; sign-in and database built in.",
   "type": "module",
   "license": "MIT",
   "icon": "./icon.svg",

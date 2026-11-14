@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Nocco",
-    "description": "Web application developer workbench. Describe a system and the agent builds it on your machine: four design systems, sign-in and data built in, a live preview beside the chat, click an element to point at it, import your Excel files, and undo any step from a timeline.",
+    "description": "Describe a web system in chat and get a working one: admin panels, mobile apps, games. See it live beside the conversation, click any element to change it, start from your Excel data, and undo any step. Four design styles; sign-in and database built in.",
     "detail": "README.md"
   }
 }
