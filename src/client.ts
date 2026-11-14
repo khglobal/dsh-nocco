@@ -4,6 +4,7 @@ import { createHome, HomeIcon } from './home.js';
 import type { Palette } from './palette.js';
 import { createPreviewTab } from './preview-tab.js';
 import { extractPreviewUrl } from './preview-url.js';
+import { FALLBACK, langOf } from './suggest.js';
 import { pageLang, text } from './text.js';
 
 export const name = 'dsh-nocco';
@@ -43,10 +44,11 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export function apply(context: Context): void {
   const ctx = context as unknown as Host;
   const opened = new Set<string>();
+  // Optional services, filled in while the host provides them.
+  let sidebar: SidebarRight | undefined;
 
   /** Show a running app: the plugin's own tab, else the built-in browser tab, else a new window. */
   const open = (url: string): void => {
-    const sidebar = ctx.get('sidebarRight') as SidebarRight | undefined;
     for (const kind of [TAB_KIND, 'browser']) {
       try { if (sidebar) { sidebar.openTab(kind, { params: { url } }); return; } } catch { /* that tab is not available here */ }
     }
@@ -60,7 +62,6 @@ export function apply(context: Context): void {
     useEffect(() => {
       if (!url || opened.has(url)) return;
       opened.add(url);
-      const sidebar = ctx.get('sidebarRight') as SidebarRight | undefined;
       try { sidebar?.openTab(TAB_KIND, { params: { url } }); } catch { /* no session surface or no tab: the row keeps its button */ }
     }, [url]);
     const row = { display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13 } as const;
@@ -76,13 +77,16 @@ export function apply(context: Context): void {
     ctx.slots.register({ name: 'tool.call.toolview', key: 'nocco_preview' }, PreviewRow));
 
   // Home page: needs the layout service to be selectable from the sidebar.
-  ctx.inject(['layout'], (inner) => {
+  ctx.inject(['layout', 'uiWorkspace'], (inner) => {
     const Home = createHome({
-      suggestions: (lang, refresh) => post('api/nocco.suggestions', { lang, refresh }),
+      // If the Host half cannot answer, show the sample ideas instead of an empty lane.
+      suggestions: (lang, refresh) => post<{ suggestions: string[]; source: 'model' | 'fallback' }>('api/nocco.suggestions', { lang, refresh })
+        .catch(() => ({ suggestions: [...FALLBACK[langOf(lang)]], source: 'fallback' as const })),
       start: (draft) => {
-        const workspace = inner.get('uiWorkspace') as UiWorkspace | undefined;
-        workspace?.startSession(undefined, { prompt: draft, whenDraftExists: 'replace' });
-        (inner.get('layout') as Layout | undefined)?.selectPanel(null);
+        // Leave the home page first: the draft is written into the conversation
+        // view, which only exists once that view is showing.
+        (inner.get('layout') as Layout).selectPanel(null);
+        (inner.get('uiWorkspace') as UiWorkspace).startSession(undefined, { prompt: draft, whenDraftExists: 'replace' });
       },
     });
     inner.slots.inject('sidebar.panellist', () =>
@@ -96,6 +100,8 @@ export function apply(context: Context): void {
       setPalette: async (url: string, palette: Palette) => { await post('api/nocco.palette', { url, palette }); },
     });
     const tabs = inner.get('sidebarRightTabs') as SidebarRightTabs;
+    sidebar = inner.get('sidebarRight') as SidebarRight;
+    inner.effect(() => () => { sidebar = undefined; }, 'nocco.sidebar');
     inner.effect(() => tabs.register({ id: TAB_ID, kind: TAB_KIND, title: () => text(pageLang()).previewTitle }), 'nocco.preview-tab');
     inner.slots.inject('sidebar.right.pane.tab', () =>
       inner.slots.register({ name: 'sidebar.right.pane.tab', key: TAB_ID }, PreviewTab));

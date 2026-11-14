@@ -43,9 +43,27 @@ const MAX_FILES = 40;
 const MAX_SESSIONS = 20;
 const SKIP = new Set(['node_modules', 'dist', 'build']);
 
-const service = <T>(ctx: Context, name: string): T | undefined => {
-  try { return (ctx as unknown as { get(name: string): T | undefined }).get(name); } catch { return undefined; }
-};
+/** Looks up a host service by name; undefined when the host does not have it. */
+export type Lookup = (name: string) => unknown;
+
+/**
+ * Follow optional host services as they come and go. A plugin only sees a
+ * service it has asked for, so each one is requested on its own and a missing
+ * one never holds the plugin back.
+ */
+export function trackServices(ctx: Context, names: readonly string[]): Lookup {
+  const host = ctx as unknown as {
+    inject(deps: readonly string[], callback: (inner: { get(name: string): unknown; effect(setup: () => () => void): unknown }) => void): unknown;
+  };
+  const found = new Map<string, unknown>();
+  for (const name of names) {
+    host.inject([name], (inner) => {
+      found.set(name, inner.get(name));
+      inner.effect(() => () => { found.delete(name); });
+    });
+  }
+  return (name) => found.get(name);
+}
 
 /** Titles found anywhere in a title-snapshot result, whatever container it uses. */
 function titlesIn(value: unknown): string[] {
@@ -58,10 +76,10 @@ function titlesIn(value: unknown): string[] {
 }
 
 /** Names only: workspace titles, their top-level entries, and recent session titles. */
-export async function gatherContext(ctx: Context, signal?: AbortSignal): Promise<SuggestContext> {
+export async function gatherContext(get: Lookup, signal?: AbortSignal): Promise<SuggestContext> {
   const context: SuggestContext = { workspaces: [], sessions: [] };
   try {
-    for (const workspace of (service<Workspaces>(ctx, 'workspaceRegistry')?.list() ?? []).slice(0, MAX_WORKSPACES)) {
+    for (const workspace of ((get('workspaceRegistry') as Workspaces | undefined)?.list() ?? []).slice(0, MAX_WORKSPACES)) {
       if (!workspace.path) continue;
       const names = await readdir(workspace.path).catch(() => [] as string[]);
       context.workspaces.push({
@@ -71,7 +89,7 @@ export async function gatherContext(ctx: Context, signal?: AbortSignal): Promise
     }
   } catch { /* no workspace service: suggestions use what else there is */ }
   try {
-    const query = service<SessionQuery>(ctx, 'sessionQuery');
+    const query = get('sessionQuery') as SessionQuery | undefined;
     const records = (await query?.listSessions(signal) ?? []).slice(0, MAX_SESSIONS);
     const ids = records.flatMap((record) => (record.header?.id ? [record.header.id] : []));
     if (query?.readTitleSnapshots && ids.length > 0) context.sessions = titlesIn(await query.readTitleSnapshots(ids, signal));
@@ -80,9 +98,9 @@ export async function gatherContext(ctx: Context, signal?: AbortSignal): Promise
 }
 
 /** One model call with the user's default model, outside any session. */
-async function askModel(ctx: Context, system: string, user: string, signal: AbortSignal): Promise<string> {
-  const llm = service<Llm>(ctx, 'llm');
-  const selection = service<DefaultModel>(ctx, 'agentDefaultModel')?.currentSelection();
+async function askModel(get: Lookup, system: string, user: string, signal: AbortSignal): Promise<string> {
+  const llm = get('llm') as Llm | undefined;
+  const selection = (get('agentDefaultModel') as DefaultModel | undefined)?.currentSelection();
   if (!llm || !selection) throw new Error('no model is available to this plugin');
   // Loaded at call time so a host without this package still loads the plugin.
   const moduleName = '@deepseek-ai/dsh-llm';
@@ -100,7 +118,7 @@ async function askModel(ctx: Context, system: string, user: string, signal: Abor
 }
 
 /** Suggested builds for the home page, cached per language until refreshed. */
-export function createSuggester(ctx: Context, ask: typeof askModel = askModel) {
+export function createSuggester(get: Lookup, ask: typeof askModel = askModel) {
   const cache = new Map<Lang, SuggestionsResult>();
   return async function suggest(lang: Lang, refresh: boolean): Promise<SuggestionsResult> {
     const cached = cache.get(lang);
@@ -108,8 +126,8 @@ export function createSuggester(ctx: Context, ask: typeof askModel = askModel) {
     let result: SuggestionsResult;
     try {
       const signal = AbortSignal.timeout(45000);
-      const { system, user } = buildSuggestPrompt(await gatherContext(ctx, signal), lang);
-      const suggestions = parseSuggestions(await ask(ctx, system, user, signal));
+      const { system, user } = buildSuggestPrompt(await gatherContext(get, signal), lang);
+      const suggestions = parseSuggestions(await ask(get, system, user, signal));
       if (suggestions.length < SUGGESTION_COUNT / 2) throw new Error('the model reply held too few usable suggestions');
       result = { suggestions, source: 'model' };
     } catch (error) {
@@ -125,13 +143,11 @@ export function createSuggester(ctx: Context, ask: typeof askModel = askModel) {
 const json = (value: unknown, status = 200): Response => Response.json(value, { status });
 
 /**
- * Routes the plugin's pages call. Returns a function that removes them.
- * Without the connection service there are no routes and the pages fall back.
+ * Routes the plugin's pages call. They exist while the host's connection
+ * service does; without it the pages fall back on their own.
  */
-export function registerHomeApi(ctx: Context, previews: PreviewManager): () => void {
-  const connection = service<Connection>(ctx, 'connection');
-  if (!connection) return () => {};
-  const suggest = createSuggester(ctx);
+export function registerHomeApi(ctx: Context, previews: PreviewManager): void {
+  const suggest = createSuggester(trackServices(ctx, ['llm', 'agentDefaultModel', 'workspaceRegistry', 'sessionQuery']));
   const handle = (work: (body: Record<string, unknown>) => Promise<unknown>) => async (request: Request): Promise<Response> => {
     try {
       const body = request.method === 'POST' ? await request.json().catch(() => ({})) as Record<string, unknown> : {};
@@ -140,25 +156,31 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager): () => v
       return json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
   };
-  const disposers = [
-    connection.fetch.register({
-      path: '/api/nocco.suggestions', methods: ['POST'], requestBody: 'buffered',
-      fetch: handle((body) => suggest(langOf(body.lang), body.refresh === true)),
-    }),
-    connection.fetch.register({
-      path: '/api/nocco.previews', methods: ['GET'],
-      fetch: handle(async () => ({ previews: previews.list() })),
-    }),
-    connection.fetch.register({
-      path: '/api/nocco.palette', methods: ['POST'], requestBody: 'buffered',
-      fetch: handle(async (body) => {
-        // Only an app this plugin is serving can be recoloured, and only with validated colours.
-        const preview = previews.list().find((item) => item.url === body.url);
-        if (!preview) throw new Error('no running preview has that address');
-        await writeFile(join(preview.directory, 'assets', 'css', 'design-scheme.css'), paletteCss(readPalette(body.palette)));
-        return { ok: true };
+  const host = ctx as unknown as {
+    inject(deps: readonly string[], callback: (inner: { get(name: string): unknown; effect(setup: () => () => void): unknown }) => void): unknown;
+  };
+  host.inject(['connection'], (inner) => {
+    const connection = inner.get('connection') as Connection;
+    const disposers = [
+      connection.fetch.register({
+        path: '/api/nocco.suggestions', methods: ['POST'], requestBody: 'buffered',
+        fetch: handle((body) => suggest(langOf(body.lang), body.refresh === true)),
       }),
-    }),
-  ];
-  return () => { for (const dispose of disposers) void dispose(); };
+      connection.fetch.register({
+        path: '/api/nocco.previews', methods: ['GET'],
+        fetch: handle(async () => ({ previews: previews.list() })),
+      }),
+      connection.fetch.register({
+        path: '/api/nocco.palette', methods: ['POST'], requestBody: 'buffered',
+        fetch: handle(async (body) => {
+          // Only an app this plugin is serving can be recoloured, and only with validated colours.
+          const preview = previews.list().find((item) => item.url === body.url);
+          if (!preview) throw new Error('no running preview has that address');
+          await writeFile(join(preview.directory, 'assets', 'css', 'design-scheme.css'), paletteCss(readPalette(body.palette)));
+          return { ok: true };
+        }),
+      }),
+    ];
+    inner.effect(() => () => { for (const dispose of disposers) void dispose(); });
+  });
 }

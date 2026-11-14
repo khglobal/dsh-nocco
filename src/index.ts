@@ -65,6 +65,6 @@ export function apply(ctx: Context): void {
 
   // Registrations are released with the plugin's fiber; the dev servers are
   // child processes and must be stopped explicitly.
-  const removeRoutes = registerHomeApi(ctx, previews);
-  ctx.effect(() => () => { removeRoutes(); void previews.stopAll(); });
+  registerHomeApi(ctx, previews);
+  ctx.effect(() => () => { void previews.stopAll(); });
 }

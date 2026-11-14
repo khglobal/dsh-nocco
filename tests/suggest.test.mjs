@@ -50,7 +50,7 @@ test('palettes are validated before they reach a file', () => {
 
 import { createSuggester, gatherContext } from '../dist/home-api.js';
 
-const hostWith = (services) => ({ get: (name) => services[name] });
+const hostWith = (services) => (name) => services[name];
 
 test('gathers names from workspaces and sessions, tolerating missing services', async () => {
   assert.deepEqual(await gatherContext(hostWith({})), { workspaces: [], sessions: [] });
