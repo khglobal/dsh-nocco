@@ -3,7 +3,9 @@ export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: false },
   app: { head: { title: __APP_NAME_JSON__, htmlAttrs: { lang: '__APP_LANG__' } } },
-  build: {
-    transpile: ['ant-design-vue', '@ant-design/icons-vue'],
+  // Ant Design Vue pulls in CommonJS modules (its date library among them).
+  // Pre-bundling the library lets the browser load them as ES modules.
+  vite: {
+    optimizeDeps: { include: ['ant-design-vue', '@ant-design/icons-vue'] },
   },
 });
