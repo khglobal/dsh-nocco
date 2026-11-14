@@ -13,7 +13,7 @@ test('the packed tarball carries everything the plugin loads', () => {
     'dist/index.js', 'dist/scaffold.js', 'dist/preview.js', 'dist/client.browser.js',
     'locale/en.json', 'locale/zh.json', 'resources/skill/SKILL.md',
     'dist/schema-sync.js',
-    'resources/templates/antdv/package.json', 'resources/templates/shadcn/package.json', 'resources/templates/vant/package.json',
+    'resources/templates/antdv/package.json', 'resources/templates/shadcn/package.json', 'resources/templates/vant/package.json', 'resources/templates/retro/package.json', 'resources/guide/retro.md',
     'resources/templates/shadcn/components/ui/button/Button.vue',
     'resources/templates/_shared/gitignore', 'resources/templates/_shared/pnpm-workspace.yaml', 'resources/templates/_shared/.env.example',
     'resources/templates/_shared/server/api/auth/login.post.ts', 'resources/templates/_shared/server/db/schema.ts']) {

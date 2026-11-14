@@ -1,6 +1,6 @@
 import type { Strings } from './text.js';
 
-export type DesignSystemId = 'antdv' | 'shadcn' | 'vant';
+export type DesignSystemId = 'antdv' | 'shadcn' | 'vant' | 'retro';
 export type Mode = 'build' | 'discuss';
 export const FONTS = ['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy'] as const;
 export type FontId = (typeof FONTS)[number];

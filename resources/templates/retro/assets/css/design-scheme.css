@@ -1,0 +1,13 @@
+/* Written by Nocco when a colour scheme is picked. */
+:root {
+  --nocco-primary: #990000;
+  --nocco-bg: #ffffff;
+  --nocco-text: #000000;
+  --nocco-text-secondary: #333333;
+  --nocco-surface: #ffcc33;
+  --nocco-border: #808080;
+  --nocco-success: #008000;
+  --nocco-warning: #cc6600;
+  --nocco-error: #cc0000;
+  --nocco-on-primary: #ffffff;
+}

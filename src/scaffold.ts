@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 export type Runner = (file: string, args: string[], cwd: string) => { status: number | null; output: string };
 
 /** The design systems an app can be built on; each is one template directory. */
-export const DESIGN_SYSTEMS = ['antdv', 'shadcn', 'vant'] as const;
+export const DESIGN_SYSTEMS = ['antdv', 'shadcn', 'vant', 'retro'] as const;
 export type DesignSystem = (typeof DESIGN_SYSTEMS)[number];
 
 export interface ScaffoldInput {

@@ -7,7 +7,8 @@ the model you choose. No account and no server.
 
 ## What it adds
 
-- Three design-system templates (Ant Design Vue, shadcn, Vant), each a Nuxt 3
+- Four design-system templates (Ant Design Vue, shadcn, Vant, and Retro, the
+  look of a 1990s web page), each a Nuxt 3
   app that already has sign-in, roles and a SQLite database.
 - Skill `nocco` (type `/nocco` in a session): how to build on the templates.
 - Tool `nocco_scaffold`: creates the app in an empty directory, installs its

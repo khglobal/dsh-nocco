@@ -7,7 +7,7 @@
 
 ## 提供的能力
 
-- 三套设计体系模板（Ant Design Vue、shadcn、Vant），每套都是自带登录、角色和
+- 四套设计体系模板（Ant Design Vue、shadcn、Vant，以及 90 年代网页风格的 Retro），每套都是自带登录、角色和
   SQLite 数据库的 Nuxt 3 应用。
 - 技能 `nocco`（在会话里输入 `/nocco`）：说明如何在模板上构建。
 - 工具 `nocco_scaffold`：在空目录里创建应用、安装依赖，并返回首个管理员账号。

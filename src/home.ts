@@ -19,7 +19,7 @@ export interface HomeApi {
   start(draft: string): void;
 }
 
-const DESIGN_SYSTEMS: readonly DesignSystemId[] = ['antdv', 'shadcn', 'vant'];
+const DESIGN_SYSTEMS: readonly DesignSystemId[] = ['antdv', 'shadcn', 'vant', 'retro'];
 const CACHE_KEY = 'dsh-nocco.suggestions';
 
 /** The Nocco look in light and dark, taken from the Nocco web app's own tokens. */

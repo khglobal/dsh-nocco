@@ -4,7 +4,7 @@
 
 First release.
 
-- Three Nuxt 3 design-system templates (Ant Design Vue, shadcn, Vant) with
+- Four Nuxt 3 design-system templates (Ant Design Vue, shadcn, Vant, Retro) with
   sign-in, roles and a SQLite database.
 - `nocco` skill, `nocco_scaffold` and `nocco_preview` tools; the preview
   applies the database schema whenever it changes.

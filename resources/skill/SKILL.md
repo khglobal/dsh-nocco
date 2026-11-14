@@ -9,7 +9,8 @@ keep the app running, and check the preview after each change.
 
 A new system begins with the `nocco_scaffold` tool. Give it an absolute path
 to an empty directory, a name, and a design system: `antdv` for desktop admin
-systems, `shadcn` for modern web apps, `vant` for mobile apps. The design
+systems, `shadcn` for modern web apps, `vant` for mobile apps, `retro` for the
+look of a 1990s web page. The design
 system is fixed once the app exists. When the request names a design system,
 a palette or a font, pass them to the tool as given. A style the request
 names describes how the interface you build should look. Sign-in exists to tell

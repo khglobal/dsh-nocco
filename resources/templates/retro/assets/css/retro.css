@@ -1,0 +1,58 @@
+/*
+ * The retro design system: the look of a mid-1990s web page. Serif headings,
+ * blue underlined links, bevelled grey controls, thick coloured boxes and a
+ * tiled sidebar. Colours come from the palette variables, so the app follows
+ * the colour scheme the user picks.
+ */
+:root {
+  --retro-serif: var(--nocco-font, 'Times New Roman', Times, 'Songti SC', 'SimSun', serif);
+  --retro-sans: var(--nocco-font, Arial, Helvetica, 'PingFang SC', 'Microsoft YaHei', sans-serif);
+  --retro-link: #0000ee;
+  --retro-visited: #551a8b;
+  --retro-grey: #c0c0c0;
+  --retro-oval: #0aa0c8;
+}
+
+html { font-size: 16px; }
+body { margin: 0; background: var(--nocco-bg); color: var(--nocco-text); font-family: var(--retro-sans); line-height: 1.35; }
+
+h1, h2, h3, h4 { font-family: var(--retro-serif); font-weight: bold; margin: 0 0 0.4em; line-height: 1.15; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+p { margin: 0 0 0.8em; }
+
+a { color: var(--retro-link); text-decoration: underline; cursor: pointer; }
+a:visited { color: var(--retro-visited); }
+a:active { color: var(--nocco-error); }
+
+hr { border: 0; border-top: 2px solid var(--nocco-border); border-bottom: 1px solid #ffffff; margin: 1.2em 0; }
+ul { margin: 0 0 0.8em; padding-left: 1.2em; }
+ul.retro-dots { list-style: none; padding-left: 0; }
+ul.retro-dots > li::before { content: '• '; }
+
+/* Controls: grey, bevelled, square. */
+input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']), select, textarea {
+  font: inherit; color: #000000; background: #ffffff; padding: 3px 5px; border-radius: 0;
+  border: 2px solid; border-color: #808080 #dfdfdf #dfdfdf #808080; box-shadow: inset 1px 1px 0 #404040; outline: none;
+}
+input:focus, select:focus, textarea:focus { outline: 1px dotted #000000; outline-offset: 1px; }
+label { font-family: var(--retro-serif); font-weight: bold; }
+
+/* Tables: ruled like a 1990s data table. */
+table.retro-table { border-collapse: separate; border-spacing: 2px; border: 2px solid; border-color: #dfdfdf #808080 #808080 #dfdfdf; background: var(--retro-grey); width: 100%; }
+table.retro-table th, table.retro-table td { border: 1px solid; border-color: #808080 #ffffff #ffffff #808080; padding: 4px 8px; text-align: left; background: #ffffff; vertical-align: top; }
+table.retro-table th { background: var(--retro-grey); font-family: var(--retro-serif); }
+table.retro-table tr:nth-child(even) td { background: #f3f3e6; }
+
+.retro-muted { color: var(--nocco-text-secondary); }
+.retro-small { font-size: 0.85rem; }
+.retro-center { text-align: center; }
+.retro-note { color: var(--nocco-error); font-family: var(--retro-serif); }
+.retro-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.retro-row > .retro-grow { flex: 1 1 320px; min-width: 0; }
+.retro-stack > * + * { margin-top: 16px; }
+
+@keyframes retro-blink { 0%, 49% { visibility: visible; } 50%, 100% { visibility: hidden; } }
+@keyframes retro-slide { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) { .retro-blink, .retro-ticker > span { animation: none !important; } }

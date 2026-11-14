@@ -1,5 +1,5 @@
 // Real scaffold, real install, real Nuxt dev server, real sign-in.
-// Run with: npm run e2e [-- antdv shadcn vant] [--hold] [--en]
+// Run with: npm run e2e [-- antdv shadcn vant retro] [--hold] [--en]
 import { readFileSync, writeFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -66,7 +66,8 @@ try {
     expect(closed.status === 401, `${designSystem}: a signed-out request to a protected route returned ${closed.status}`);
     await previews.stop(directory);
     const config = join(directory, 'nuxt.config.ts');
-    const setSignIn = (value) => writeFileSync(config, readFileSync(config, 'utf8').replace(/signIn: '(required|off)' \}/, `signIn: '${value}' }`));
+    // The setting is the one inside runtimeConfig; the comment above it mentions the same words.
+    const setSignIn = (value) => writeFileSync(config, readFileSync(config, 'utf8').replace(/(runtimeConfig:.*signIn: ')(required|off)'/, `$1${value}'`));
     setSignIn('off');
     const open = await previews.start(directory);
     const anonymous = await call(open.url, '/api/_probe-missing');

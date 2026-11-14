@@ -12,7 +12,7 @@ function files(root, base = '') {
   });
 }
 const all = files(dir);
-const kits = ['antdv', 'shadcn', 'vant'];
+const kits = ['antdv', 'shadcn', 'vant', 'retro'];
 
 test('each design system has its shell, start page and sign-in page', () => {
   for (const kit of kits) {

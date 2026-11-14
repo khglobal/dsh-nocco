@@ -47,7 +47,7 @@ export function apply(ctx: Context): void {
       directory: { type: 'string', required: true, description: 'Absolute path of the directory to create the app in' },
       appName: { type: 'string', required: true, description: 'Name shown in the page title' },
       language: { type: 'string', description: 'Interface language of the app: zh-CN or en. Defaults to zh-CN' },
-      designSystem: { type: 'string', description: 'antdv (Ant Design Vue, desktop admin systems), shadcn (shadcn with Tailwind, modern web apps) or vant (Vant, mobile apps). Defaults to antdv' },
+      designSystem: { type: 'string', description: 'antdv (Ant Design Vue, desktop admin systems), shadcn (shadcn with Tailwind, modern web apps), vant (Vant, mobile apps) or retro (the look of a 1990s web page). Defaults to antdv' },
       palette: { type: 'string', description: 'Colour palette of the app: violet, navy, emerald, amber, rose, night, or a #rrggbb main colour. Defaults to the template\'s own colours' },
       font: { type: 'string', description: 'Font of the app: sans-serif, serif, monospace, cursive or fantasy. Defaults to the template\'s own font' },
       signIn: { type: 'string', description: 'required (the default): every page and server route needs a signed-in user. off: the app opens straight to its first page for anyone' },
