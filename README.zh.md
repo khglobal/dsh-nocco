@@ -1,4 +1,4 @@
-# dsh-nocco
+# @khglobal/dsh-nocco
 
 [English](README.md) | 中文
 
@@ -33,7 +33,7 @@ DSH 0.2 系列的 0.2.2-rc.1 或更新版本，Node 20 或更新版本，pnpm �
 
 ## 安装
 
-    dsh plugin --profile web add dsh-nocco
+    dsh plugin --profile web add @khglobal/dsh-nocco
 
 DSH 桌面版请在「设置 → 插件」里安装。
 

@@ -1,4 +1,4 @@
-# dsh-nocco
+# @khglobal/dsh-nocco
 
 English | [中文](README.zh.md)
 
@@ -42,7 +42,7 @@ git for checkpoints.
 
 ## Install
 
-    dsh plugin --profile web add dsh-nocco
+    dsh plugin --profile web add @khglobal/dsh-nocco
 
 In DSH Desktop, install it from Settings → Plugins instead.
 

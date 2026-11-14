@@ -136,7 +136,7 @@ export function apply(context: Context): void {
         if (!response.ok) throw new Error(`upload returned ${response.status}`);
         return await response.json() as { name: string; path: string };
       },
-      voiceAvailable: async () => (await fetch('api/nocco.voice').then((response) => response.json()) as { available?: boolean }).available === true,
+      voiceAvailable: async () => (await post<{ available?: boolean }>('api/nocco.voice', {})).available === true,
       transcribe: async (wav) => {
         const response = await fetch('api/nocco.transcribe', { method: 'POST', headers: { 'content-type': 'audio/wav' }, body: new Blob([wav.slice()]) });
         if (!response.ok) throw new Error(`transcription returned ${response.status}`);

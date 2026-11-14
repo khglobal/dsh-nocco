@@ -20,7 +20,7 @@ const client = await build({
 });
 await writeFile(
   new URL('../dist/client.browser.js', import.meta.url),
-  `window.__ModuleLoader__.load({id: "dsh-nocco", factory: function(require) {
+  `window.__ModuleLoader__.load({id: "@khglobal/dsh-nocco", factory: function(require) {
 const module = { exports: {} };
 ${client.outputFiles[0].text}
 return module.exports;

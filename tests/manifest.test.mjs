@@ -6,11 +6,11 @@ const root = new URL('../', import.meta.url);
 const pkg = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'));
 
 test('manifest declares an installable bundle', () => {
-  assert.equal(pkg.name, 'dsh-nocco');
+  assert.equal(pkg.name, '@khglobal/dsh-nocco');
   assert.equal(pkg.dsh.bundle.patch, './cordis.patch.yml');
   assert.ok(existsSync(new URL('cordis.patch.yml', root)));
   const patch = readFileSync(new URL('cordis.patch.yml', root), 'utf8');
-  assert.match(patch, /id: dsh-nocco\n\s+name: dsh-nocco/);
+  assert.match(patch, /id: '@khglobal\/dsh-nocco'\n\s+name: '@khglobal\/dsh-nocco'/);
 });
 
 test('client inject lists only official packages', () => {
@@ -27,5 +27,5 @@ test('host and client modules are named after the package', async () => {
   const host = await import(new URL('dist/index.js', root));
   assert.equal(host.name, 'dsh-nocco');
   const client = readFileSync(new URL('dist/client.browser.js', root), 'utf8');
-  assert.match(client, /__ModuleLoader__\.load\(\{id: "dsh-nocco"/);
+  assert.match(client, /__ModuleLoader__\.load\(\{id: "@khglobal\/dsh-nocco"/);
 });

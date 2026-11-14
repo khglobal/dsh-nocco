@@ -260,7 +260,8 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoi
         },
       }),
       connection.fetch.register({
-        path: '/api/nocco.voice', methods: ['GET'],
+        // POST like the others: the host's gateway refuses a plugin's GET routes.
+        path: '/api/nocco.voice', methods: ['POST'], requestBody: 'buffered',
         fetch: handle(async () => ({ available: voice.available() })),
       }),
       connection.fetch.register({
@@ -279,7 +280,7 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoi
         fetch: handle((body) => enhance(body.text)),
       }),
       connection.fetch.register({
-        path: '/api/nocco.previews', methods: ['GET'],
+        path: '/api/nocco.previews', methods: ['POST'], requestBody: 'buffered',
         fetch: handle(async () => ({ previews: previews.list() })),
       }),
       connection.fetch.register({
