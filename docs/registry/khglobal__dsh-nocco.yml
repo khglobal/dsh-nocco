@@ -1,14 +1,7 @@
-# Draft entry for awesome-dsh-plugin/awesome-dsh-plugin: data/plugins/khglobal__dsh-nocco.yml
 url: https://github.com/khglobal/dsh-nocco
-name: Nocco
+name: khglobal/dsh-nocco
 category: dev
 description:
-  en: >-
-    Web application developer workbench. Describe a system and the agent builds
-    it on your machine: four design systems, sign-in and data built in, a live
-    preview beside the chat, click an element to point at it, import your Excel
-    files, and undo any step from a timeline.
-  zh: >-
-    网页应用开发工作台。说出想要的系统，Agent 就在你的电脑上把它做出来：四套设计体系，
-    自带登录和数据，对话旁实时预览，点一下就能指出要改的元素，可导入 Excel 数据，
-    每一步都能从时间线撤销。
+  en: 'Web application developer workbench: scaffolds Nuxt apps from four design-system templates with sign-in and SQLite, shows a live preview beside the chat, lets you click an element to point the agent at it, imports Excel and CSV rows, and restores checkpoints.'
+  zh: '网页应用开发工作台：从四套设计体系模板生成自带登录和 SQLite 的 Nuxt 应用，在对话旁实时预览，可点选预览中的元素交给 Agent 修改，可导入 Excel 与 CSV 数据，并能恢复到任一检查点。'
+icon: https://raw.githubusercontent.com/khglobal/dsh-nocco/main/assets/icon-180.png
