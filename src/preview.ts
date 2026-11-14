@@ -1,0 +1,139 @@
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { createServer } from 'node:net';
+import { join, resolve } from 'node:path';
+
+export interface PreviewState {
+  running: boolean;
+  url?: string;
+  output: string[];
+}
+
+export interface PreviewManager {
+  start(directory: string): Promise<PreviewState>;
+  status(directory: string): PreviewState;
+  stop(directory: string): Promise<PreviewState>;
+  stopAll(): Promise<void>;
+}
+
+interface Entry { child: ChildProcess; url: string; output: string[]; exited: boolean; }
+
+const OUTPUT_LINES = 60;
+const ATTEMPTS = 3;
+
+const viteCommand = (directory: string, port: number) => ({
+  file: process.execPath,
+  args: [join(directory, 'node_modules', 'vite', 'bin', 'vite.js'), '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
+});
+
+function freePort(): Promise<number> {
+  return new Promise((done, fail) => {
+    const server = createServer();
+    server.once('error', fail);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      server.close(() => done(port));
+    });
+  });
+}
+
+function kill(child: ChildProcess): void {
+  if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F']);
+    return;
+  }
+  // The child leads its own process group, so this also ends its children.
+  try { process.kill(-child.pid, 'SIGTERM'); } catch { child.kill('SIGTERM'); }
+}
+
+async function answers(url: string): Promise<boolean> {
+  try { await fetch(url, { signal: AbortSignal.timeout(1000) }); return true; } catch { return false; }
+}
+
+/** One dev server per app directory, bound to loopback. */
+export function createPreviewManager(options: {
+  command?: (directory: string, port: number) => { file: string; args: string[] };
+  readyTimeoutMs?: number;
+} = {}): PreviewManager {
+  const command = options.command ?? viteCommand;
+  const readyTimeoutMs = options.readyTimeoutMs ?? 30000;
+  const entries = new Map<string, Entry>();
+  const snapshot = (entry: Entry | undefined): PreviewState =>
+    entry && !entry.exited ? { running: true, url: entry.url, output: [...entry.output] } : { running: false, output: entry ? [...entry.output] : [] };
+  // Resolves once the process has ended and its output has been collected.
+  const closed = (entry: Entry): Promise<void> =>
+    entry.exited ? Promise.resolve() : new Promise((done) => entry.child.once('close', () => done()));
+
+  async function launch(directory: string): Promise<Entry> {
+    const port = await freePort();
+    const { file, args } = command(directory, port);
+    const child = spawn(file, args, { cwd: directory, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
+    const entry: Entry = { child, url: `http://127.0.0.1:${port}/`, output: [], exited: false };
+    const collect = (chunk: Buffer): void => {
+      for (const line of chunk.toString('utf8').split('\n')) {
+        if (line.trim()) entry.output.push(line.trimEnd());
+      }
+      entry.output.splice(0, Math.max(0, entry.output.length - OUTPUT_LINES));
+    };
+    child.stdout?.on('data', collect);
+    child.stderr?.on('data', collect);
+    child.once('error', (error) => { entry.output.push(String(error)); entry.exited = true; });
+    // 'close' fires after the output streams end, so the captured output is
+    // complete by the time an early exit is reported.
+    child.once('close', () => { entry.exited = true; });
+    return entry;
+  }
+
+  return {
+    async start(input) {
+      const directory = resolve(input);
+      const current = entries.get(directory);
+      if (current && !current.exited) return snapshot(current);
+
+      let last: Entry | undefined;
+      for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+        const entry = await launch(directory);
+        last = entry;
+        const deadline = Date.now() + readyTimeoutMs;
+        while (!entry.exited && Date.now() < deadline) {
+          if (await answers(entry.url)) {
+            entries.set(directory, entry);
+            return snapshot(entry);
+          }
+          await new Promise((wait) => setTimeout(wait, 150));
+        }
+        if (!entry.exited) {
+          kill(entry.child);
+          await closed(entry);
+          entries.set(directory, entry);
+          throw new Error(`dev server did not start within ${readyTimeoutMs} ms\n${entry.output.join('\n')}`);
+        }
+        // Exited before answering. A lost port race is worth one more try on a
+        // new port; any other exit is a real failure.
+        if (!entry.output.some((line) => /EADDRINUSE|already in use/i.test(line))) break;
+      }
+      if (last) entries.set(directory, last);
+      throw new Error(`dev server exited before it was ready\n${last?.output.join('\n') ?? ''}`);
+    },
+
+    status(input) {
+      return snapshot(entries.get(resolve(input)));
+    },
+
+    async stop(input) {
+      const entry = entries.get(resolve(input));
+      if (entry && !entry.exited) {
+        kill(entry.child);
+        await closed(entry);
+      }
+      return snapshot(entry);
+    },
+
+    async stopAll() {
+      const running = [...entries.values()].filter((entry) => !entry.exited);
+      for (const entry of running) kill(entry.child);
+      await Promise.all(running.map((entry) => closed(entry)));
+    },
+  };
+}
