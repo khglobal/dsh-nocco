@@ -63,5 +63,5 @@ running a local dev server bound to 127.0.0.1.
 
 ## Licence
 
-MIT. The app template in `resources/template/` is MIT-0, so apps you build
+MIT. The app template in `resources/templates/` is MIT-0, so apps you build
 carry no attribution requirement.

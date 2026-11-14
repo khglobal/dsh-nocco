@@ -55,4 +55,4 @@ DSH 桌面版请在「设置 → 插件」里安装。
 
 ## 许可
 
-MIT。`resources/template/` 里的应用模板使用 MIT-0，你构建的应用不需要保留署名。
+MIT。`resources/templates/` 里的应用模板使用 MIT-0，你构建的应用不需要保留署名。
