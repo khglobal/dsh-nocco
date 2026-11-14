@@ -21,4 +21,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 The app template in resources/templates/ is licensed separately under MIT-0;
-see resources/templates/LICENSE.
+see resources/templates/_shared/LICENSE.
