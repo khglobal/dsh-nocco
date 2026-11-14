@@ -1,11 +1,70 @@
-# @khglobal/dsh-nocco
+# Nocco: Web application developer workbench
 
 English | [中文](README.zh.md)
 
-Build web systems from chat in DeepSeek Harness. Runs on your machine with
-the model you choose. No account and no server.
+Nocco turns DeepSeek Harness into a workbench for building web applications.
+Describe the system you want; the agent builds it on your machine with the
+model you choose, and you watch it, steer it and undo it from one place. No
+account, no server, no extra cost beyond your own model.
 
-## What it adds
+![The Nocco workbench: the conversation, a live preview at phone width, the palette, Inspect and the History timeline](docs/screenshots/workbench.jpg)
+
+## Why not just ask DSH to build a web app?
+
+DSH can write a web app without any plugin. Nocco changes what that work is like:
+
+| | Plain DSH | With Nocco |
+| --- | --- | --- |
+| Starting point | An empty folder; the model picks a stack and sets it up each time | A tested app with sign-in, roles and a database already working |
+| Seeing the result | You start a dev server and open it yourself | A live preview opens beside the conversation, at desktop, tablet or phone width |
+| Look and feel | Whatever the model decides that day | Four design systems, a colour scheme, font and style chosen before you build; recolour afterwards in one click, without the model |
+| Your existing data | The model reads the file and retypes what it sees | Excel and CSV rows are loaded into the app as they are; the model only sees the columns |
+| Saying what to change | Describe the element in words | Click it in the preview |
+| Going back | No way to restore files | A timeline of checkpoints with one-click restore |
+| Checking the work | The agent tests by its own means, or you find the error | Errors from the page you are looking at go straight back to the agent |
+
+## What you can do with it
+
+- **Build from a sentence.** Open Nocco in the sidebar, describe the system,
+  press Build. The request goes straight to the agent, and the preview opens
+  within about a minute while the rest is still being written.
+- **Pick the look first.** Ant Design for admin systems, shadcn for modern web
+  apps, Vant for phones, Retro for the 1990s web; plus a colour scheme, a
+  font and style options.
+- **Start from your own files.** Attach an Excel, CSV, Word or Markdown file
+  and the system is built around it, with your rows as its starting data.
+- **Real sign-in and real data.** Every app has accounts, roles and a SQLite
+  database from the first minute. Games and public pages are created open,
+  with no sign-in screen.
+- **Point, don't describe.** Inspect lets you click an element in the preview;
+  your next message tells the agent exactly which one, and which file draws it.
+- **Undo anything.** History keeps a checkpoint of each piece of work.
+  Restore one with a click; the restore can itself be undone.
+- **Talk before building.** Switch to Discuss to plan the system with the
+  agent before a single file is written.
+- **Sharpen the request.** Enhance prompt rewrites a rough idea into a clear
+  brief with your model; voice input dictates it when DSH's voice input is on.
+
+## The Nocco page
+
+![The Nocco page: a prompt box with design system, colour scheme, file attach and the Discuss / Build switch, above suggestions written by your model](docs/screenshots/home.jpg)
+
+The suggestions under the box are written by your model from the names of
+your workspace files and recent sessions.
+
+## Design systems
+
+| Ant Design · desktop admin | shadcn · modern web |
+| --- | --- |
+| ![A sales report dashboard built with the Ant Design system](docs/screenshots/antdv.jpg) | ![A snake game built with the shadcn system](docs/screenshots/shadcn.jpg) |
+
+| Retro · 1990s web | Vant · mobile |
+| --- | --- |
+| ![An ERP overview built with the Retro system](docs/screenshots/retro.jpg) | ![A store inspection app built with the Vant system](docs/screenshots/vant.jpg) |
+
+Every screenshot is an app the agent built from one request.
+
+## What it adds to DSH
 
 - Four design-system templates (Ant Design Vue, shadcn, Vant, and Retro, the
   look of a 1990s web page), each a Nuxt 3

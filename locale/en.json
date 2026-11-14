@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Nocco",
-    "description": "Build web systems from chat: design-system templates with sign-in, roles and stored data, and a live preview beside the conversation."
+    "description": "Web application developer workbench. Describe a system and the agent builds it on your machine: four design systems, sign-in and data built in, a live preview beside the chat, click an element to point at it, import your Excel files, and undo any step from a timeline."
   }
 }

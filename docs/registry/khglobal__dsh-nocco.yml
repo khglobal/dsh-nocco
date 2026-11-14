@@ -1,0 +1,14 @@
+# Draft entry for awesome-dsh-plugin/awesome-dsh-plugin: data/plugins/khglobal__dsh-nocco.yml
+url: https://github.com/khglobal/dsh-nocco
+name: Nocco
+category: dev
+description:
+  en: >-
+    Web application developer workbench. Describe a system and the agent builds
+    it on your machine: four design systems, sign-in and data built in, a live
+    preview beside the chat, click an element to point at it, import your Excel
+    files, and undo any step from a timeline.
+  zh: >-
+    网页应用开发工作台。说出想要的系统，Agent 就在你的电脑上把它做出来：四套设计体系，
+    自带登录和数据，对话旁实时预览，点一下就能指出要改的元素，可导入 Excel 数据，
+    每一步都能从时间线撤销。

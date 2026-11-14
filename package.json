@@ -1,7 +1,7 @@
 {
   "name": "@khglobal/dsh-nocco",
   "version": "0.1.1",
-  "description": "Build web systems from chat: design-system templates with sign-in, roles and stored data, a Nocco home page and a live preview.",
+  "description": "Nocco: web application developer workbench for DeepSeek Harness. Build web systems from chat with design-system templates, a live preview, click-to-inspect and one-click undo.",
   "type": "module",
   "license": "MIT",
   "icon": "./icon.svg",
@@ -30,6 +30,7 @@
     "dist",
     "resources",
     "locale",
+    "docs/screenshots",
     "cordis.patch.yml",
     "icon.svg",
     "README.md",
