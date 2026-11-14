@@ -12,8 +12,11 @@ test('the packed tarball carries everything the plugin loads', () => {
   for (const file of ['package.json', 'cordis.patch.yml', 'icon.svg', 'LICENSE', 'README.md',
     'dist/index.js', 'dist/scaffold.js', 'dist/preview.js', 'dist/client.browser.js',
     'locale/en.json', 'locale/zh.json', 'resources/skill/SKILL.md',
-    'resources/template/package.json', 'resources/template/gitignore', 'resources/template/pnpm-workspace.yaml', 'resources/template/.env.example',
-    'resources/template/src/main.js', 'resources/template/src/lib/data.js']) {
+    'dist/schema-sync.js',
+    'resources/templates/antdv/package.json', 'resources/templates/shadcn/package.json', 'resources/templates/vant/package.json',
+    'resources/templates/shadcn/components/ui/button/Button.vue',
+    'resources/templates/_shared/gitignore', 'resources/templates/_shared/pnpm-workspace.yaml', 'resources/templates/_shared/.env.example',
+    'resources/templates/_shared/server/api/auth/login.post.ts', 'resources/templates/_shared/server/db/schema.ts']) {
     assert.ok(files.includes(file), file);
   }
   assert.ok(!files.some((file) => file.startsWith('tests/') || file.startsWith('src/')), 'sources and tests stay out');

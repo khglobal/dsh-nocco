@@ -1,11 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createPreviewManager } from '../dist/preview.js';
 
 const stub = fileURLToPath(new URL('./fixtures/stub-server.mjs', import.meta.url));
-const manager = (mode = 'ok', readyTimeoutMs = 5000) => createPreviewManager({
+const manager = (mode = 'ok', readyTimeoutMs = 5000, sync) => createPreviewManager({
   readyTimeoutMs,
+  sync,
   command: (_dir, port) => ({ file: process.execPath, args: [stub, String(port), mode] }),
 });
 const dir = process.cwd();
@@ -56,4 +60,29 @@ test('stopAll ends every server', async () => {
   const { url } = await previews.start(dir);
   await previews.stopAll();
   await assert.rejects(fetch(url));
+});
+
+test('sync work runs before start and again when its file changes', async () => {
+  const app = mkdtempSync(join(tmpdir(), 'nocco-sync-'));
+  mkdirSync(join(app, 'db'));
+  writeFileSync(join(app, 'db', 'schema.ts'), 'one');
+  let runs = 0;
+  const previews = manager('ok', 5000, { file: join('db', 'schema.ts'), run: async () => [`synced ${(runs += 1)}`] });
+  try {
+    const started = await previews.start(app);
+    assert.ok(started.output.includes('synced 1'));
+    writeFileSync(join(app, 'db', 'schema.ts'), 'two');
+    for (let i = 0; i < 40 && runs < 2; i += 1) await new Promise((wait) => setTimeout(wait, 100));
+    assert.ok(previews.status(app).output.includes('synced 2'));
+  } finally { await previews.stopAll(); }
+});
+
+test('a failing sync is reported and does not stop the server', async () => {
+  const app = mkdtempSync(join(tmpdir(), 'nocco-sync-'));
+  const previews = manager('ok', 5000, { file: 'schema.ts', run: async () => { throw new Error('bad schema'); } });
+  try {
+    const started = await previews.start(app);
+    assert.equal(started.running, true);
+    assert.ok(started.output.some((line) => line.includes('bad schema')));
+  } finally { await previews.stopAll(); }
 });

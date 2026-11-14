@@ -1,5 +1,0 @@
-# pnpm refuses to install until dependency build scripts are approved.
-# These two are the only ones this app's dependencies need.
-allowBuilds:
-  esbuild: true
-  vue-demi: true

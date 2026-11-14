@@ -1,6 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { watch, type FSWatcher } from 'node:fs';
 import { createServer } from 'node:net';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 
 export interface PreviewState {
   running: boolean;
@@ -15,14 +16,37 @@ export interface PreviewManager {
   stopAll(): Promise<void>;
 }
 
-interface Entry { child: ChildProcess; url: string; output: string[]; exited: boolean; }
+/**
+ * Work that must be repeated whenever one file of the app changes, such as
+ * applying the database schema. It also runs once before the server starts.
+ */
+export interface PreviewSync {
+  /** Path of the watched file, relative to the app directory. */
+  file: string;
+  /** Does the work and returns lines to show in the preview output. */
+  run(directory: string): Promise<string[]>;
+}
+
+interface Entry {
+  child: ChildProcess;
+  url: string;
+  /** Results of the latest sync run; kept apart so server logs cannot push them out. */
+  notes: string[];
+  output: string[];
+  exited: boolean;
+  watcher?: FSWatcher;
+}
 
 const OUTPUT_LINES = 60;
 const ATTEMPTS = 3;
+const SYNC_DEBOUNCE_MS = 400;
+// shadcn-nuxt prints one of these per component on every start. They are
+// harmless and would otherwise fill the whole output window.
+const NOISE = /^\s*WARN\s+Overriding \S+ component\./;
 
-const viteCommand = (directory: string, port: number) => ({
-  file: process.execPath,
-  args: [join(directory, 'node_modules', 'vite', 'bin', 'vite.js'), '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
+const nuxtCommand = (directory: string, port: number) => ({
+  file: join(directory, 'node_modules', '.bin', process.platform === 'win32' ? 'nuxi.cmd' : 'nuxi'),
+  args: ['dev', '--host', '127.0.0.1', '--port', String(port)],
 });
 
 function freePort(): Promise<number> {
@@ -48,22 +72,34 @@ function kill(child: ChildProcess): void {
 }
 
 async function answers(url: string): Promise<boolean> {
-  try { await fetch(url, { signal: AbortSignal.timeout(1000) }); return true; } catch { return false; }
+  try { await fetch(url, { signal: AbortSignal.timeout(2000) }); return true; } catch { return false; }
 }
 
 /** One dev server per app directory, bound to loopback. */
 export function createPreviewManager(options: {
   command?: (directory: string, port: number) => { file: string; args: string[] };
   readyTimeoutMs?: number;
+  sync?: PreviewSync;
 } = {}): PreviewManager {
-  const command = options.command ?? viteCommand;
-  const readyTimeoutMs = options.readyTimeoutMs ?? 30000;
+  const command = options.command ?? nuxtCommand;
+  const readyTimeoutMs = options.readyTimeoutMs ?? 60000;
+  const sync = options.sync;
   const entries = new Map<string, Entry>();
   const snapshot = (entry: Entry | undefined): PreviewState =>
-    entry && !entry.exited ? { running: true, url: entry.url, output: [...entry.output] } : { running: false, output: entry ? [...entry.output] : [] };
+    entry && !entry.exited
+      ? { running: true, url: entry.url, output: [...entry.notes, ...entry.output] }
+      : { running: false, output: entry ? [...entry.notes, ...entry.output] : [] };
   // Resolves once the process has ended and its output has been collected.
   const closed = (entry: Entry): Promise<void> =>
     entry.exited ? Promise.resolve() : new Promise((done) => entry.child.once('close', () => done()));
+  const append = (entry: Entry, lines: readonly string[]): void => {
+    entry.output.push(...lines.filter((line) => line.trim() && !NOISE.test(line)));
+    entry.output.splice(0, Math.max(0, entry.output.length - OUTPUT_LINES));
+  };
+  const runSync = async (directory: string): Promise<string[]> => {
+    if (!sync) return [];
+    try { return await sync.run(directory); } catch (error) { return [`[sync] ${String(error)}`]; }
+  };
 
   // Dev servers run in their own process groups, so they would outlive the
   // host if it exits without disposing the plugin. End them on the way out.
@@ -71,23 +107,40 @@ export function createPreviewManager(options: {
     for (const entry of entries.values()) kill(entry.child);
   });
 
-  async function launch(directory: string): Promise<Entry> {
+  /** Re-run the sync work whenever the watched file settles after a change. */
+  function watchSync(directory: string, entry: Entry): void {
+    if (!sync) return;
+    const target = join(directory, sync.file);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      // Watch the folder, not the file: editors replace files on save, which
+      // ends a watch placed on the file itself.
+      entry.watcher = watch(dirname(target), (_event, name) => {
+        if (name !== basename(target) || entry.exited) return;
+        clearTimeout(timer);
+        timer = setTimeout(() => { void runSync(directory).then((lines) => { entry.notes = lines; }); }, SYNC_DEBOUNCE_MS);
+      });
+      entry.watcher.on('error', () => {});
+    } catch { /* the folder does not exist yet: nothing to watch */ }
+  }
+
+  async function launch(directory: string, preface: readonly string[]): Promise<Entry> {
     const port = await freePort();
     const { file, args } = command(directory, port);
-    const child = spawn(file, args, { cwd: directory, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
-    const entry: Entry = { child, url: `http://127.0.0.1:${port}/`, output: [], exited: false };
-    const collect = (chunk: Buffer): void => {
-      for (const line of chunk.toString('utf8').split('\n')) {
-        if (line.trim()) entry.output.push(line.trimEnd());
-      }
-      entry.output.splice(0, Math.max(0, entry.output.length - OUTPUT_LINES));
-    };
+    const child = spawn(file, args, {
+      cwd: directory,
+      detached: process.platform !== 'win32',
+      shell: process.platform === 'win32',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const entry: Entry = { child, url: `http://127.0.0.1:${port}/`, notes: [...preface], output: [], exited: false };
+    const collect = (chunk: Buffer): void => append(entry, chunk.toString('utf8').split('\n').map((line) => line.trimEnd()));
     child.stdout?.on('data', collect);
     child.stderr?.on('data', collect);
     child.once('error', (error) => { entry.output.push(String(error)); entry.exited = true; });
     // 'close' fires after the output streams end, so the captured output is
     // complete by the time an early exit is reported.
-    child.once('close', () => { entry.exited = true; });
+    child.once('close', () => { entry.exited = true; entry.watcher?.close(); });
     return entry;
   }
 
@@ -97,14 +150,16 @@ export function createPreviewManager(options: {
       const current = entries.get(directory);
       if (current && !current.exited) return snapshot(current);
 
+      const preface = await runSync(directory);
       let last: Entry | undefined;
       for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
-        const entry = await launch(directory);
+        const entry = await launch(directory, preface);
         last = entry;
         const deadline = Date.now() + readyTimeoutMs;
         while (!entry.exited && Date.now() < deadline) {
           if (await answers(entry.url)) {
             entries.set(directory, entry);
+            watchSync(directory, entry);
             return snapshot(entry);
           }
           await new Promise((wait) => setTimeout(wait, 150));

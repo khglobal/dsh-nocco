@@ -3,7 +3,8 @@ import type {} from '@deepseek-ai/dsh-skill';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { readFileSync } from 'node:fs';
 import { createPreviewManager } from './preview.js';
-import { scaffold } from './scaffold.js';
+import { DESIGN_SYSTEMS, scaffold, type DesignSystem } from './scaffold.js';
+import { schemaSync } from './schema-sync.js';
 
 export const name = 'dsh-nocco';
 /** Both services are required: without them the plugin has nothing to offer. */
@@ -15,11 +16,11 @@ const json = {
 } as const;
 
 export function apply(ctx: Context): void {
-  const previews = createPreviewManager();
+  const previews = createPreviewManager({ sync: schemaSync });
 
   ctx.skills.register({
     name: 'nocco',
-    description: 'Build a Vue 3 + Element Plus web app on this machine with a live preview.',
+    description: 'Build a web system on this machine from a Nocco template, with sign-in, roles, stored data and a live preview.',
     whenToUse: 'The user wants a web app, admin tool or internal system built or changed.',
     source: 'custom',
     content: readFileSync(new URL('../resources/skill/SKILL.md', import.meta.url), 'utf8'),
@@ -27,11 +28,12 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'nocco_scaffold',
-    description: 'Create a new Vue 3 + Element Plus app in an empty directory and install its dependencies. Fails if the directory is not empty.',
+    description: 'Create a new web system from a Nocco template in an empty directory and install its dependencies. The app comes with sign-in, roles and a SQLite database. Returns the admin account for the first sign-in. Fails if the directory is not empty.',
     parameters: {
       directory: { type: 'string', required: true, description: 'Absolute path of the directory to create the app in' },
       appName: { type: 'string', required: true, description: 'Name shown in the page title' },
       language: { type: 'string', description: 'Interface language of the app: zh-CN or en. Defaults to zh-CN' },
+      designSystem: { type: 'string', description: 'antdv (Ant Design Vue, desktop admin systems), shadcn (shadcn with Tailwind, modern web apps) or vant (Vant, mobile apps). Defaults to antdv' },
     },
     output: json,
     async execute(args) {
@@ -39,13 +41,14 @@ export function apply(ctx: Context): void {
         directory: args.directory,
         appName: args.appName,
         language: args.language === 'en' ? 'en' : 'zh-CN',
+        designSystem: DESIGN_SYSTEMS.includes(args.designSystem as DesignSystem) ? (args.designSystem as DesignSystem) : 'antdv',
       })) };
     },
   }));
 
   ctx.tools.register(defineTool({
     name: 'nocco_preview',
-    description: 'Start, stop or check the local dev server of an app made by nocco_scaffold. Returns whether it is running, its loopback URL, and recent server output including compile errors.',
+    description: 'Start, stop or check the local dev server of an app made by nocco_scaffold. Returns whether it is running, its loopback URL, and recent server output including compile errors and the result of applying the database schema.',
     parameters: {
       action: { type: 'string', required: true, description: 'start, stop or status' },
       directory: { type: 'string', required: true, description: 'Absolute path of the app directory' },

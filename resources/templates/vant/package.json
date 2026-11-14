@@ -1,0 +1,23 @@
+{
+  "name": "__APP_SLUG__",
+  "private": true,
+  "scripts": {
+    "dev": "nuxi dev",
+    "build": "nuxi build",
+    "preview": "nuxi preview",
+    "db:push": "drizzle-kit push --force"
+  },
+  "dependencies": {
+    "nuxt": "^3.16",
+    "vue": "^3.5",
+    "vant": "^4.9",
+    "drizzle-orm": "^0.39",
+    "drizzle-kit": "^0.30",
+    "@libsql/client": "^0.14"
+  },
+  "devDependencies": {
+    "typescript": "^5.7"
+  },
+  "version": "0.1.0",
+  "type": "module"
+}

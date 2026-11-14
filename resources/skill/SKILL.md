@@ -1,60 +1,85 @@
-# Building an app with Nocco
+# Building a web system with Nocco
 
-You are building a single-page web app on the user's machine. Work in small
-steps, keep the app running, and check the preview after each change.
+You are building a web system on the user's machine from a Nocco template.
+The template already provides the shell, sign-in, roles and a database, so
+your work is the system's own pages, data and rules. Work in small steps,
+keep the app running, and check the preview after each change.
 
 ## Start and run
 
-A new app begins with the `nocco_scaffold` tool, which creates the project in
-an empty directory and installs its dependencies. Give it an absolute path.
-Run the app with `nocco_preview` (action `start`) and tell the user the URL it
-returns. After you change files, call `nocco_preview` with action `status` and
-read its output; fix any compile or runtime error it shows before moving on.
-The dev server applies changes as files are saved, so it does not need a
-restart.
+A new system begins with the `nocco_scaffold` tool. Give it an absolute path
+to an empty directory, a name, and a design system: `antdv` for desktop admin
+systems, `shadcn` for modern web apps, `vant` for mobile apps. The design
+system is fixed once the app exists. The tool returns the admin account for
+the first sign-in; tell the user that username and password.
+
+Run the app with `nocco_preview` (action `start`) and tell the user the URL.
+After you change files, call `nocco_preview` with action `status` and read
+its output. It contains compile and runtime errors from the dev server and
+the result of applying the database schema. Fix what it reports before
+moving on. The dev server applies changes as files are saved and does not
+need a restart.
 
 ## Stack
 
-Vue 3 single-file components, Vite in dev mode, Element Plus for interface
-components, Vue Router with file-based routing, Pinia for shared state.
+Nuxt 3 running as a single-page app with its own server routes. Pages,
+components, composables and server utilities are auto-imported, so they need
+no import statements.
 
-- A file at `src/pages/<name>.vue` becomes the `/<name>` route.
-- Vue, Vue Router, Pinia and VueUse APIs are available without import
-  statements, and so are Element Plus components.
-- Every Element Plus icon is registered as a component and is used as a bare
-  tag inside `<el-icon>`. Do not add another icon library.
-- Import project files through the `@/` alias, which points at `src/`.
+- A file at `pages/<name>.vue` becomes the `/<name>` route.
+- A file at `server/api/<name>.<method>.ts` becomes the `/api/<name>` route
+  for that HTTP method.
+- Pages call server routes with `$fetch` or `useFetch`.
+- Use only the component library of the app's design system. Do not add
+  another one.
 
 ## Where to write
 
-Write pages in `src/pages/`, shared components in `src/components/`, logic and
-stores in `src/lib/`, and static assets in `src/assets/`.
+Write pages in `pages/`, shared components in `components/`, layouts in
+`layouts/`, client logic in `composables/`, server routes in `server/api/`,
+and tables in `server/db/schema.ts`.
 
-Leave the app shell alone: `package.json`, `vite.config.js`, `index.html`,
-`src/main.js`, `src/App.vue`, `src/lib/data.js` and `src/lib/supabase.js`. It
-already handles routing, locale and data wiring. If the app truly needs a new
-dependency, say so and install it with the package manager the scaffold used.
-
-## Styling
-
-Use Element Plus components with `<style scoped>` blocks. Colours, radii and
-shadows come from the tokens in `src/assets/app.css`; reference them with
-`var(...)` so the app stays visually consistent. Write interface text in the
-language the app was scaffolded with.
+Leave the shell alone: `package.json`, `nuxt.config.ts`, `app.vue`,
+`drizzle.config.ts`, `.env`, `server/db/index.ts`, everything under
+`server/api/auth/`, `server/utils/`, `server/middleware/` and
+`server/plugins/`, `composables/useAuth.ts`, `middleware/auth.global.ts` and
+`pages/login.vue`. In the shadcn design system also leave `components/ui/`
+alone. If the system truly needs a new dependency, say so and install it with
+the package manager the scaffold used.
 
 ## Data
 
-By default the app has no backend. Use `collection(name)` from
-`@/lib/data`, which keeps rows in browser storage and offers `list`, `get`,
-`insert`, `update` and `remove`. Keep all data access behind modules in
-`src/lib/` so the storage can change later without touching pages.
+Data lives in a SQLite file through Drizzle. Define tables in
+`server/db/schema.ts` beside the existing `users` table, which must stay.
+The preview applies the schema to the database whenever that file changes;
+you do not run a migration command. Read and write data only in server
+routes, importing `db` from `server/db` and the tables from
+`server/db/schema`. Pages never touch the database directly.
 
-When the user wants a real backend, they supply their own Supabase project by
-putting its URL and anon key in `.env.local` (see `.env.example`). Then import
-`supabase` from `@/lib/supabase`, which is null until those values are set.
-Put every schema statement the app needs in `supabase/migrations.sql` and ask
-the user to run that file in their Supabase SQL editor; you cannot apply it
-yourself. Never ask for, store or write a service-role key.
+## Sign-in and roles
+
+Every page except `/login` requires a signed-in user, and every `/api` route
+except the sign-in routes rejects signed-out requests. You do not add checks
+for that.
+
+To restrict a server route to certain roles, call
+`await requireRole(event, ...)` with the allowed role names at the top of the
+handler. To read who is calling, use `await requireUser(event)`. In pages,
+`useAuth()` gives `user`, `hasRole(...)` and `logout()`; use `hasRole` to
+show or hide menu entries and actions. Hiding something in a page is not
+protection: the server route must check the role as well.
+
+Roles are plain strings stored on the user. The template starts with `admin`
+and `member`. A system that needs more roles adds them as values and gives
+admins a page to create users and set their roles, with a server route that
+stores passwords through `hashPassword`.
+
+## Styling
+
+Colours come from the palette variables in `assets/css/design-scheme.css`,
+all named `--nocco-...`. Reference them with `var(...)` instead of writing
+colour values, so the whole system follows the palette the user picks. Write
+interface text in the language the app was created with.
 
 ## Finishing a step
 

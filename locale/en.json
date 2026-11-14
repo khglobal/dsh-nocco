@@ -1,4 +1,6 @@
 {
-  "meta.title": "Nocco app builder",
-  "meta.description": "Build Vue 3 + Element Plus web apps from chat, with a local live preview."
+  "meta": {
+    "title": "Nocco",
+    "description": "Build web systems from chat: design-system templates with sign-in, roles and stored data, and a live preview beside the conversation."
+  }
 }

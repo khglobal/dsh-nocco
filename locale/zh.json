@@ -1,4 +1,6 @@
 {
-  "meta.title": "Nocco 应用构建",
-  "meta.description": "通过对话构建 Vue 3 与 Element Plus 网页应用，并在本机实时预览。"
+  "meta": {
+    "title": "Nocco",
+    "description": "通过对话构建网页系统：自带登录、角色和数据存储的设计体系模板，以及对话旁的实时预览。"
+  }
 }

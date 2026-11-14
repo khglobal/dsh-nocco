@@ -1,0 +1,8 @@
+# pnpm refuses to install until dependency build scripts are approved or
+# declined. These are the ones this app's dependencies declare.
+allowBuilds:
+  esbuild: true
+  '@parcel/watcher': true
+  vue-demi: true
+  better-sqlite3: false
+  core-js: false
