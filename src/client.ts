@@ -113,6 +113,11 @@ export function apply(context: Context): void {
       // If the Host half cannot answer, show the sample ideas instead of an empty lane.
       suggestions: (lang, refresh) => post<{ suggestions: string[]; source: 'model' | 'fallback' }>('api/nocco.suggestions', { lang, refresh })
         .catch(() => ({ suggestions: [...FALLBACK[langOf(lang)]], source: 'fallback' as const })),
+      upload: async (file) => {
+        const response = await fetch('api/nocco.upload', { method: 'POST', headers: { 'x-nocco-filename': encodeURIComponent(file.name) }, body: file });
+        if (!response.ok) throw new Error(`upload returned ${response.status}`);
+        return await response.json() as { name: string; path: string };
+      },
       enhance: async (request) => (await post<{ text: string }>('api/nocco.enhance', { text: request })).text,
       start: (draft) => {
         // Leave the home page first: the draft is written into the conversation

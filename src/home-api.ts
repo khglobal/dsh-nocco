@@ -1,9 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis';
-import { readdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
 import type { Checkpoints } from './checkpoints.js';
 import { buildEnhancePrompt, cleanEnhanced, ENHANCE_LIMIT } from './enhance.js';
-import { paletteCss, readPalette } from './palette.js';
+import { fontIn, paletteCss, readPalette } from './palette.js';
 import type { PreviewManager } from './preview.js';
 import { buildSuggestPrompt, FALLBACK, langOf, parseSuggestions, SUGGESTION_COUNT, type Lang, type SuggestContext } from './suggest.js';
 
@@ -160,6 +162,26 @@ export function createSuggester(get: Lookup, ask: typeof askModel = askModel) {
 
 const json = (value: unknown, status = 200): Response => Response.json(value, { status });
 
+/** The largest file the home page may attach, in bytes. */
+export const UPLOAD_LIMIT = 25 * 1024 * 1024;
+
+/**
+ * Keep a file the user attached on the home page where the agent can read it.
+ * It lands in its own folder under the system's temporary directory, under
+ * its own name with path separators removed.
+ */
+export async function saveUpload(name: string, bytes: Uint8Array, root = join(tmpdir(), 'nocco-uploads')): Promise<{ name: string; path: string }> {
+  const clean = basename(name.replace(/\\/g, '/')).replace(/[\u0000-\u001f]/g, '').trim();
+  if (!clean || clean === '.' || clean === '..') throw new Error('the file has no usable name');
+  if (bytes.byteLength === 0) throw new Error('the file is empty');
+  if (bytes.byteLength > UPLOAD_LIMIT) throw new Error(`the file is larger than ${UPLOAD_LIMIT / 1024 / 1024} MB`);
+  const folder = join(root, randomBytes(6).toString('hex'));
+  await mkdir(folder, { recursive: true });
+  const path = join(folder, clean);
+  await writeFile(path, bytes);
+  return { name: clean, path };
+}
+
 /**
  * Routes the plugin's pages call. They exist while the host's connection
  * service does; without it the pages fall back on their own.
@@ -193,6 +215,18 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoi
         fetch: handle((body) => suggest(langOf(body.lang), body.refresh === true)),
       }),
       connection.fetch.register({
+        // The file's bytes are the body; its name travels percent-encoded in a header.
+        path: '/api/nocco.upload', methods: ['POST'], requestBody: 'buffered',
+        fetch: async (request) => {
+          try {
+            const name = decodeURIComponent(request.headers.get('x-nocco-filename') ?? '');
+            return json(await saveUpload(name, new Uint8Array(await request.arrayBuffer())));
+          } catch (error) {
+            return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+          }
+        },
+      }),
+      connection.fetch.register({
         path: '/api/nocco.enhance', methods: ['POST'], requestBody: 'buffered',
         fetch: handle((body) => enhance(body.text)),
       }),
@@ -204,7 +238,10 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoi
         path: '/api/nocco.palette', methods: ['POST'], requestBody: 'buffered',
         fetch: handle(async (body) => {
           // Only an app this plugin is serving can be recoloured, and only with validated colours.
-          await writeFile(join(served(body.url), 'assets', 'css', 'design-scheme.css'), paletteCss(readPalette(body.palette)));
+          const file = join(served(body.url), 'assets', 'css', 'design-scheme.css');
+          // Recolouring keeps the font the app was created with.
+          const font = fontIn(await readFile(file, 'utf8').catch(() => ''));
+          await writeFile(file, paletteCss(readPalette(body.palette), font));
           return { ok: true };
         }),
       }),

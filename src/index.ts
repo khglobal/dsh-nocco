@@ -18,6 +18,16 @@ const json = {
   render: (_args: unknown, value: unknown) => [{ type: 'text' as const, text: JSON.stringify(value) }],
 } as const;
 
+/** Runtime errors the app's pages reported since the last call; none when the app cannot be asked. */
+async function browserErrors(url: string | undefined): Promise<{ message: string; page: string }[]> {
+  if (!url) return [];
+  try {
+    const response = await fetch(new URL('api/_nocco/errors', url), { signal: AbortSignal.timeout(3000) });
+    const body = await response.json() as { errors?: { message: string; page: string }[] };
+    return (body.errors ?? []).map(({ message, page }) => ({ message, page }));
+  } catch { return []; }
+}
+
 export function apply(ctx: Context): void {
   const previews = createPreviewManager({ sync: schemaSync });
   const checkpoints = createCheckpoints();
@@ -39,6 +49,7 @@ export function apply(ctx: Context): void {
       language: { type: 'string', description: 'Interface language of the app: zh-CN or en. Defaults to zh-CN' },
       designSystem: { type: 'string', description: 'antdv (Ant Design Vue, desktop admin systems), shadcn (shadcn with Tailwind, modern web apps) or vant (Vant, mobile apps). Defaults to antdv' },
       palette: { type: 'string', description: 'Colour palette of the app: violet, navy, emerald, amber, rose, night, or a #rrggbb main colour. Defaults to the template\'s own colours' },
+      font: { type: 'string', description: 'Font of the app: sans-serif, serif, monospace, cursive or fantasy. Defaults to the template\'s own font' },
     },
     output: json,
     async execute(args) {
@@ -48,16 +59,20 @@ export function apply(ctx: Context): void {
         language: args.language === 'en' ? 'en' : 'zh-CN',
         designSystem: DESIGN_SYSTEMS.includes(args.designSystem as DesignSystem) ? (args.designSystem as DesignSystem) : 'antdv',
         palette: args.palette,
+        font: args.font,
       });
       // The untouched template is the first point the user can return to.
       await checkpoints.save(created.directory, args.appName).catch(() => undefined);
-      return { ...created };
+      // The map of what the template provides saves the agent reading it file by file.
+      const guide = ['common', created.designSystem]
+        .map((part) => readFileSync(new URL(`../resources/guide/${part}.md`, import.meta.url), 'utf8')).join('');
+      return { ...created, guide };
     },
   }));
 
   ctx.tools.register(defineTool({
     name: 'nocco_preview',
-    description: 'Start, stop or check the local dev server of an app made by nocco_scaffold. Returns whether it is running, its loopback URL, and recent server output including compile errors and the result of applying the database schema.',
+    description: 'Start, stop or check the local dev server of an app made by nocco_scaffold. Returns whether it is running, its loopback URL, and recent server output including compile errors and the result of applying the database schema. status also returns browserErrors: runtime errors from pages the user has opened in the preview since the last status call.',
     parameters: {
       action: { type: 'string', required: true, description: 'start, stop or status' },
       directory: { type: 'string', required: true, description: 'Absolute path of the app directory' },
@@ -66,7 +81,10 @@ export function apply(ctx: Context): void {
     async execute(args) {
       if (args.action === 'start') return { ...(await previews.start(args.directory)) };
       if (args.action === 'stop') return { ...(await previews.stop(args.directory)) };
-      if (args.action === 'status') return { ...previews.status(args.directory) };
+      if (args.action === 'status') {
+        const status = previews.status(args.directory);
+        return { ...status, browserErrors: await browserErrors(status.url) };
+      }
       throw new Error('action must be start, stop or status');
     },
   }));

@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { cp, mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
-import { paletteCss, resolvePalette } from './palette.js';
+import { FONT_STACKS, paletteCss, readPalette, resolvePalette } from './palette.js';
 import { fileURLToPath } from 'node:url';
 
 export type Runner = (file: string, args: string[], cwd: string) => { status: number | null; output: string };
@@ -18,6 +18,8 @@ export interface ScaffoldInput {
   designSystem: DesignSystem;
   /** An offered palette's id or a `#rrggbb` main colour; the template's own colours when absent or unknown. */
   palette?: string;
+  /** One of the offered font names; the template's own font when absent or unknown. */
+  font?: string;
 }
 
 export interface ScaffoldResult {
@@ -76,7 +78,18 @@ export async function scaffold(
   // npm drops .gitignore from published packages, so the template ships it
   // under another name.
   await rename(join(directory, 'gitignore'), join(directory, '.gitignore'));
-  if (palette) await writeFile(join(directory, 'assets', 'css', 'design-scheme.css'), paletteCss(palette));
+  const font = FONT_STACKS[(input.font ?? '').trim().toLowerCase()];
+  if (palette || font) {
+    const file = join(directory, 'assets', 'css', 'design-scheme.css');
+    // A font alone keeps the template's colours, which the file already holds.
+    const templateCss = await readFile(file, 'utf8');
+    const colours = palette ?? readPalette(Object.fromEntries(
+      ['primary', 'bg', 'text', 'text-secondary', 'surface', 'border'].map((name) => [
+        name === 'text-secondary' ? 'textSecondary' : name,
+        new RegExp(`--nocco-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(templateCss)?.[1],
+      ])));
+    await writeFile(file, paletteCss(colours, font));
+  }
   await replaceIn(join(directory, 'nuxt.config.ts'), [
     ['__APP_NAME_JSON__', JSON.stringify(appName)],
     ['__APP_LANG__', language],

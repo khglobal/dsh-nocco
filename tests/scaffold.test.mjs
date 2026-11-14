@@ -96,3 +96,17 @@ test('a palette is written into the app; an unknown one leaves the template colo
   assert.match(css(custom), /--nocco-primary: #112233;/);
   assert.equal(css(unknown), css(plain));
 });
+
+test('a font is recorded beside the colours, with or without a palette', async () => {
+  const css = (dir) => readFileSync(join(dir, 'assets', 'css', 'design-scheme.css'), 'utf8');
+  const fontOnly = fresh(), both = fresh(), unknown = fresh(), plain = fresh();
+  await scaffold(input(fontOnly, { font: 'Serif' }), { run: ok() });
+  await scaffold(input(both, { font: 'monospace', palette: 'navy' }), { run: ok() });
+  await scaffold(input(unknown, { font: 'comic' }), { run: ok() });
+  await scaffold(input(plain), { run: ok() });
+  assert.match(css(fontOnly), /--nocco-font: Georgia/);
+  assert.match(css(fontOnly), /--nocco-primary: #9E7FFF;/i);
+  assert.match(css(both), /--nocco-font: ui-monospace/);
+  assert.match(css(both), /--nocco-primary: #24456D;/);
+  assert.equal(css(unknown), css(plain));
+});

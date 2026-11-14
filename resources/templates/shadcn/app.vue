@@ -22,7 +22,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-foreground">
+  <!-- With no font chosen for the app the variable is unset and the font is inherited. -->
+  <div class="min-h-screen bg-background text-foreground" style="font-family: var(--nocco-font)">
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>

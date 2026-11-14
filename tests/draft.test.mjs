@@ -4,13 +4,21 @@ import { buildDraft } from '../dist/draft.js';
 import { text } from '../dist/text.js';
 
 test('a draft invokes the skill with the request and the chosen design system', () => {
-  assert.equal(buildDraft('  Build a CRM  ', 'shadcn', text('en')), '/nocco Build a CRM\n\nDesign system: shadcn');
-  assert.equal(buildDraft('做一个工单系统', 'vant', text('zh')), '/nocco 做一个工单系统\n\n设计体系：vant');
+  assert.equal(buildDraft('  Build a CRM  ', { designSystem: 'shadcn' }, text('en')), '/nocco Build a CRM\n\nDesign system: shadcn');
+  assert.equal(buildDraft('做一个工单系统', { designSystem: 'vant' }, text('zh')), '/nocco 做一个工单系统\n\n设计体系：vant');
 });
 
 test('a picked palette is named in the draft', () => {
-  assert.equal(buildDraft('Build a CRM', 'antdv', text('en'), 'emerald'), '/nocco Build a CRM\n\nDesign system: antdv\nPalette: emerald');
-  assert.equal(buildDraft('Build a CRM', 'antdv', text('zh'), '#112233'), '/nocco Build a CRM\n\n设计体系：antdv\n配色：#112233');
+  assert.equal(buildDraft('Build a CRM', { designSystem: 'antdv', palette: 'emerald' }, text('en')), '/nocco Build a CRM\n\nDesign system: antdv\nPalette: emerald');
+  assert.equal(buildDraft('Build a CRM', { designSystem: 'antdv', palette: '#112233' }, text('zh')), '/nocco Build a CRM\n\n设计体系：antdv\n配色：#112233');
+});
+
+test('every other choice adds its own line, and defaults add none', () => {
+  const draft = buildDraft('Build a CRM', {
+    designSystem: 'antdv', font: 'serif', features: ['rounded', 'shadow'], mode: 'discuss', files: ['/tmp/a/Sales.xlsx'],
+  }, text('en'));
+  assert.equal(draft, '/nocco Build a CRM\n\nDesign system: antdv\nFont: serif\nStyle: Rounded corners, Soft shadow\nMode: Discuss\nFiles:\n- /tmp/a/Sales.xlsx');
+  assert.equal(buildDraft('Build a CRM', { designSystem: 'antdv', mode: 'build', features: [], files: [] }, text('en')), '/nocco Build a CRM\n\nDesign system: antdv');
 });
 
 test('every string exists in both languages', () => {

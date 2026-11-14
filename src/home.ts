@@ -1,6 +1,6 @@
 import { createElement as h, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
-import { buildDraft, type DesignSystemId } from './draft.js';
-import { PALETTES } from './palette.js';
+import { buildDraft, FEATURES, FONTS, type DesignSystemId, type FeatureId, type FontId, type Mode } from './draft.js';
+import { FONT_STACKS, PALETTES } from './palette.js';
 import { pageLang, text } from './text.js';
 
 export interface HomeApi {
@@ -8,6 +8,8 @@ export interface HomeApi {
   suggestions(lang: string, refresh: boolean): Promise<{ suggestions: string[]; source: 'model' | 'fallback' }>;
   /** Rewrite a rough request into a clearer one with the user's model. */
   enhance(request: string): Promise<string>;
+  /** Keep an attached file where the agent can read it; returns its path there. */
+  upload(file: File): Promise<{ name: string; path: string }>;
   /** Open a new session with this draft. */
   start(draft: string): void;
 }
@@ -132,6 +134,8 @@ const spinner = h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', 'aria-hi
 const swatches = h('svg', { width: 15, height: 15, viewBox: '0 0 16 16', 'aria-hidden': true, style: { opacity: 0.75 } },
   h('path', { d: 'M8 1.800a6.200 6.200 0 1 0 0 12.400c.900 0 1.400-.600 1.400-1.300 0-.900-.800-1.200-.800-2 0-.700.600-1.200 1.300-1.200h1.500a2.800 2.800 0 0 0 2.800-2.800C14.200 4.100 11.400 1.800 8 1.800z', strokeWidth: 1.2, ...stroke }),
   h('circle', { cx: 5.2, cy: 7.4, r: 0.9, fill: 'currentColor' }), h('circle', { cx: 7.4, cy: 4.800, r: 0.9, fill: 'currentColor' }), h('circle', { cx: 10.600, cy: 5.600, r: 0.9, fill: 'currentColor' }));
+const paperclip = h('svg', { width: 15, height: 15, viewBox: '0 0 16 16', 'aria-hidden': true, style: { opacity: 0.75 } },
+  h('path', { d: 'M13.200 7.300l-5.300 5.300a3.200 3.200 0 0 1-4.500-4.500l5.600-5.600a2.100 2.100 0 0 1 3 3l-5.600 5.600a1 1 0 0 1-1.500-1.500l5-5', strokeWidth: 1.2, ...stroke }));
 const caret = h('svg', { width: 10, height: 10, viewBox: '0 0 12 12', 'aria-hidden': true, style: { opacity: 0.6 } }, h('path', { d: 'M3 4.500l3 3 3-3', strokeWidth: 1.4, ...stroke }));
 
 /** The Nocco home page: the Nocco web app's home, with a prompt box, design-system choice and suggested builds. */
@@ -146,6 +150,23 @@ export function createHome(api: HomeApi): () => ReactElement {
     // An offered palette's id, a custom `#rrggbb` main colour, or nothing for the template's own colours.
     const [palette, setPalette] = useState<string | undefined>();
     const [colouring, setColouring] = useState(false);
+    const [tab, setTab] = useState<'colours' | 'typography' | 'features'>('colours');
+    const [font, setFont] = useState<FontId | undefined>();
+    const [features, setFeatures] = useState<readonly FeatureId[]>([]);
+    const [mode, setMode] = useState<Mode>('build');
+    const [files, setFiles] = useState<readonly { name: string; path: string }[]>([]);
+    const [uploading, setUploading] = useState(false);
+    const [uploadFailed, setUploadFailed] = useState(false);
+    const picker = useRef<HTMLInputElement | null>(null);
+    const attach = (chosen: readonly File[]): void => {
+      if (chosen.length === 0) return;
+      setUploading(true);
+      setUploadFailed(false);
+      Promise.all(chosen.map((file) => api.upload(file)))
+        .then((saved) => { if (alive.current) setFiles((current) => [...current, ...saved]); })
+        .catch(() => { if (alive.current) setUploadFailed(true); })
+        .finally(() => { if (alive.current) setUploading(false); });
+    };
     const paletteColour = PALETTES.find((item) => item.id === palette)?.primary ?? palette;
     const [prompts, setPrompts] = useState<string[]>(() => readCache(lang) ?? []);
     const [source, setSource] = useState<'model' | 'fallback'>('fallback');
@@ -168,7 +189,9 @@ export function createHome(api: HomeApi): () => ReactElement {
 
     const next = (): void => setIndex((current) => (prompts.length > 0 ? (current + 1) % prompts.length : 0));
     const typed = useTypewriter(prompts, index, next);
-    const build = (value: string): void => { if (value.trim()) api.start(buildDraft(value, designSystem, strings, palette)); };
+    const build = (value: string): void => {
+      if (value.trim() && !uploading) api.start(buildDraft(value, { designSystem, palette, font, features, mode, files: files.map((file) => file.path) }, strings));
+    };
     const canSend = request.trim().length > 0;
     // The box grows with what is typed, up to a limit, as the original does.
     const box = useRef<HTMLTextAreaElement | null>(null);
@@ -213,6 +236,17 @@ export function createHome(api: HomeApi): () => ReactElement {
               h('stop', { offset: '60%', stopColor: '#24456D', stopOpacity: 0.95 }), h('stop', { offset: '100%', stopColor: '#24456D', stopOpacity: 0 }))),
             h('rect', { x: 0, y: 0, width: '100%', height: '100%', rx: 12, pathLength: 320, strokeLinecap: 'round', strokeDasharray: '14 306', fill: 'transparent', stroke: 'url(#nocco-home-line)', strokeWidth: 1.5, style: { animation: 'noccoPromptLine 7s linear infinite' } }),
           ),
+          files.length > 0 || uploading || uploadFailed ? h('div', { style: { position: 'relative', display: 'flex', flexWrap: 'wrap', gap: 6, padding: '4px 8px 0' } },
+            ...files.map((file) => h('span', { key: file.path, title: file.path, style: { display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', padding: '3px 4px 3px 8px', borderRadius: 6, fontSize: 12, color: theme.text, background: theme.hover } },
+              h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, file.name),
+              h('button', {
+                type: 'button', title: strings.removeFile, 'aria-label': `${strings.removeFile}: ${file.name}`,
+                onClick: () => setFiles((current) => current.filter((item) => item.path !== file.path)),
+                style: { width: 18, height: 18, padding: 0, border: 0, borderRadius: 4, background: 'transparent', color: theme.muted, cursor: 'pointer', fontSize: 14, lineHeight: 1 },
+              }, '×'))),
+            uploading ? h('span', { style: { fontSize: 12, color: theme.muted, padding: '3px 4px' } }, strings.uploading) : null,
+            uploadFailed ? h('span', { role: 'alert', style: { fontSize: 12, color: '#b42318', padding: '3px 4px' } }, strings.uploadFailed) : null,
+          ) : null,
           h('div', { style: { position: 'relative' } },
           h('textarea', {
             ref: box, value: request, rows: 3, readOnly: enhancing, placeholder: strings.placeholder, 'aria-label': strings.placeholder,
@@ -252,33 +286,71 @@ export function createHome(api: HomeApi): () => ReactElement {
                 style: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 6, border: 0, background: colouring ? theme.hover : 'transparent', color: theme.muted, cursor: 'pointer' },
               }, swatches, paletteColour ? h('span', { style: { width: 10, height: 10, borderRadius: 999, background: paletteColour, boxShadow: `0 0 0 1px ${theme.line}` } }) : null),
               colouring ? h('div', { style: { position: 'fixed', inset: 0, zIndex: 40 }, onClick: () => setColouring(false) }) : null,
-              colouring ? h('div', { role: 'dialog', 'aria-label': strings.colours, style: { position: 'absolute', bottom: '100%', left: 0, marginBottom: 4, zIndex: 50, width: 232, padding: 10, boxSizing: 'border-box', borderRadius: 10, border: `1px solid ${theme.line}`, background: theme.raised, boxShadow: '0 10px 30px -8px rgba(20,28,40,0.28)' } },
-                h('div', { style: { fontSize: 12, fontWeight: 600, color: theme.text, marginBottom: 8 } }, strings.colours),
-                h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 } },
-                  ...PALETTES.map((item) => h('button', {
-                    key: item.id, type: 'button', title: item.id, 'aria-pressed': palette === item.id,
-                    onClick: () => { setPalette(item.id); setColouring(false); },
-                    style: { display: 'flex', flexDirection: 'column', gap: 5, padding: 6, borderRadius: 8, cursor: 'pointer', font: 'inherit', fontSize: 11, textAlign: 'left', textTransform: 'capitalize', color: theme.muted, background: 'transparent', border: `1px solid ${palette === item.id ? theme.accent : theme.line}`, boxShadow: palette === item.id ? `inset 0 0 0 1px ${theme.accent}` : 'none' },
-                  },
-                    // A miniature of the palette: its page, a surface block and its main colour.
-                    h('span', { 'aria-hidden': true, style: { display: 'flex', alignItems: 'flex-end', gap: 3, height: 26, padding: 4, boxSizing: 'border-box', borderRadius: 5, background: item.bg, border: `1px solid ${item.border}` } },
-                      h('span', { style: { flex: 1, height: '100%', borderRadius: 3, background: item.surface } }),
-                      h('span', { style: { width: 14, height: 8, borderRadius: 3, background: item.primary } })),
-                    item.id)),
+              colouring ? h('div', { role: 'dialog', 'aria-label': strings.colours, style: { position: 'absolute', bottom: '100%', left: 0, marginBottom: 4, zIndex: 50, width: 248, padding: 10, boxSizing: 'border-box', borderRadius: 10, border: `1px solid ${theme.line}`, background: theme.raised, boxShadow: '0 10px 30px -8px rgba(20,28,40,0.28)' } },
+                h('div', { role: 'tablist', style: { display: 'flex', gap: 2, padding: 2, marginBottom: 10, borderRadius: 7, background: theme.hover } },
+                  ...(['colours', 'typography', 'features'] as const).map((id) => h('button', {
+                    key: id, type: 'button', role: 'tab', 'aria-selected': tab === id, onClick: () => setTab(id),
+                    style: { flex: 1, padding: '4px 0', border: 0, borderRadius: 5, font: 'inherit', fontSize: 12, fontWeight: 500, cursor: 'pointer', color: tab === id ? theme.text : theme.muted, background: tab === id ? theme.raised : 'transparent', boxShadow: tab === id ? '0 1px 2px rgba(0,0,0,0.12)' : 'none' },
+                  }, strings[id === 'colours' ? 'tabColours' : id === 'typography' ? 'tabTypography' : 'tabFeatures'])),
                 ),
-                h('label', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: theme.muted, cursor: 'pointer' } },
-                  h('input', {
-                    type: 'color', value: /^#[0-9a-f]{6}$/i.test(palette ?? '') ? palette : '#24456d', 'aria-label': strings.customColour,
-                    onChange: (event: { target: { value: string } }) => setPalette(event.target.value.toLowerCase()),
-                    style: { width: 24, height: 24, padding: 0, border: 0, background: 'transparent', cursor: 'pointer' },
-                  }), strings.customColour),
-                h('button', {
-                  type: 'button', onClick: () => { setPalette(undefined); setColouring(false); },
-                  style: { marginTop: 8, padding: '4px 0', border: 0, background: 'transparent', font: 'inherit', fontSize: 12, cursor: 'pointer', color: palette ? theme.accent : theme.faint },
-                }, strings.defaultColours),
+                ...(tab === 'colours' ? [
+                h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 } },
+                    ...PALETTES.map((item) => h('button', {
+                      key: item.id, type: 'button', title: item.id, 'aria-pressed': palette === item.id,
+                      onClick: () => { setPalette(item.id); setColouring(false); },
+                      style: { display: 'flex', flexDirection: 'column', gap: 5, padding: 6, borderRadius: 8, cursor: 'pointer', font: 'inherit', fontSize: 11, textAlign: 'left', textTransform: 'capitalize', color: theme.muted, background: 'transparent', border: `1px solid ${palette === item.id ? theme.accent : theme.line}`, boxShadow: palette === item.id ? `inset 0 0 0 1px ${theme.accent}` : 'none' },
+                    },
+                      // A miniature of the palette: its page, a surface block and its main colour.
+                      h('span', { 'aria-hidden': true, style: { display: 'flex', alignItems: 'flex-end', gap: 3, height: 26, padding: 4, boxSizing: 'border-box', borderRadius: 5, background: item.bg, border: `1px solid ${item.border}` } },
+                        h('span', { style: { flex: 1, height: '100%', borderRadius: 3, background: item.surface } }),
+                        h('span', { style: { width: 14, height: 8, borderRadius: 3, background: item.primary } })),
+                      item.id)),
+                  ),
+                  h('label', { key: 'custom', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: theme.muted, cursor: 'pointer' } },
+                    h('input', {
+                      type: 'color', value: /^#[0-9a-f]{6}$/i.test(palette ?? '') ? palette : '#24456d', 'aria-label': strings.customColour,
+                      onChange: (event: { target: { value: string } }) => setPalette(event.target.value.toLowerCase()),
+                      style: { width: 24, height: 24, padding: 0, border: 0, background: 'transparent', cursor: 'pointer' },
+                    }), strings.customColour),
+                  h('button', {
+                    key: 'default', type: 'button', onClick: () => { setPalette(undefined); setColouring(false); },
+                    style: { marginTop: 8, padding: '4px 0', border: 0, background: 'transparent', font: 'inherit', fontSize: 12, cursor: 'pointer', color: palette ? theme.accent : theme.faint },
+                  }, strings.defaultColours),
+                ] : tab === 'typography' ? [
+                  h('div', { key: 'fonts', style: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 } },
+                    ...FONTS.map((id) => h('button', {
+                      key: id, type: 'button', 'aria-pressed': font === id, onClick: () => setFont(font === id ? undefined : id),
+                      style: { display: 'flex', alignItems: 'baseline', gap: 8, padding: '6px 8px', borderRadius: 8, cursor: 'pointer', textAlign: 'left', color: theme.text, background: 'transparent', border: `1px solid ${font === id ? theme.accent : theme.line}`, boxShadow: font === id ? `inset 0 0 0 1px ${theme.accent}` : 'none' },
+                    }, h('span', { 'aria-hidden': true, style: { fontFamily: FONT_STACKS[id], fontSize: 18, lineHeight: 1 } }, 'Aa'),
+                      h('span', { style: { fontSize: 11, color: theme.muted } }, strings[id]))),
+                  ),
+                ] : [
+                  h('div', { key: 'features', style: { display: 'flex', flexDirection: 'column', gap: 2 } },
+                    ...FEATURES.map((id) => h('label', { key: id, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 4px', fontSize: 13, color: theme.text, cursor: 'pointer' } },
+                      h('input', {
+                        type: 'checkbox', checked: features.includes(id),
+                        onChange: () => setFeatures(features.includes(id) ? features.filter((item) => item !== id) : [...features, id]),
+                        style: { accentColor: theme.accent, margin: 0 },
+                      }), strings[id])),
+                  ),
+                ]),
               ) : null,
             ),
+            h('input', {
+              ref: picker, type: 'file', multiple: true, hidden: true, accept: '.xlsx,.csv,.tsv,.docx,.md,.markdown,.txt',
+              onChange: (event: { target: HTMLInputElement }) => { attach([...(event.target.files ?? [])]); event.target.value = ''; },
+            }),
+            h('button', {
+              type: 'button', title: strings.attach, 'aria-label': strings.attach, disabled: uploading, onClick: () => picker.current?.click(),
+              style: { display: 'inline-flex', alignItems: 'center', padding: '4px 8px', borderRadius: 6, border: 0, background: 'transparent', color: theme.muted, cursor: 'pointer' },
+            }, paperclip),
             h('span', { style: { flex: 1 } }),
+            h('div', { role: 'tablist', style: { display: 'inline-flex', padding: 2, borderRadius: 6, border: `1px solid ${theme.line}`, background: theme.hover } },
+              ...(['discuss', 'build'] as const).map((id) => h('button', {
+                key: id, type: 'button', role: 'tab', 'aria-selected': mode === id, title: id === 'discuss' ? strings.discussHint : strings.buildHint, onClick: () => setMode(id),
+                style: { padding: '4px 10px', border: 0, borderRadius: 4, font: 'inherit', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', cursor: 'pointer', color: mode === id ? theme.text : theme.muted, background: mode === id ? theme.raised : 'transparent', boxShadow: mode === id ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' },
+              }, strings[id])),
+            ),
             h('button', {
               type: 'button', disabled: !canSend, title: strings.build, onClick: () => build(request),
               style: {

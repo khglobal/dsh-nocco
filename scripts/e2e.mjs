@@ -51,6 +51,14 @@ try {
     const me = await call(state.url, '/api/auth/me', { cookie: login.cookie });
     expect(me.json?.user?.role === 'admin', `${designSystem}: signed-in user is not the admin`);
 
+    // Pages report runtime errors to the app; the preview reads them once.
+    const reported = await call(state.url, '/api/_nocco/errors', { body: { message: 'TypeError: probe', page: '/probe' } });
+    expect(reported.status === 200, `${designSystem}: reporting a page error returned ${reported.status}`);
+    const collected = await call(state.url, '/api/_nocco/errors');
+    expect(collected.json?.errors?.[0]?.message === 'TypeError: probe', `${designSystem}: the reported page error was not returned`);
+    const emptied = await call(state.url, '/api/_nocco/errors');
+    expect(emptied.json?.errors?.length === 0, `${designSystem}: page errors were not cleared after being read`);
+
     console.log(`[e2e] ${designSystem}: install ${((installed - started) / 1000).toFixed(1)} s (${made.packageManager}), first page ${((ready - installed) / 1000).toFixed(1)} s, sign-in ok, ${state.url}`);
     if (hold) console.log(`[e2e] ${designSystem}: admin password ${made.admin.password}`);
   }

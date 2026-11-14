@@ -23,9 +23,24 @@ export function readPalette(value: unknown): Palette {
   return palette;
 }
 
-/** The contents of design-scheme.css for a palette. Status colours are fixed. */
-export function paletteCss(palette: Palette): string {
-  return `/* Written by Nocco when a palette is picked in the preview. */
+/** Font stacks an app can be created with, by the name the home page offers. */
+export const FONT_STACKS: Readonly<Record<string, string>> = {
+  'sans-serif': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
+  serif: "Georgia, 'Songti SC', 'Noto Serif CJK SC', 'SimSun', serif",
+  monospace: "ui-monospace, 'SF Mono', Menlo, Consolas, 'Noto Sans Mono CJK SC', monospace",
+  cursive: "'Snell Roundhand', 'Kaiti SC', 'KaiTi', cursive",
+  fantasy: "Papyrus, 'Yuanti SC', fantasy",
+};
+
+/** The font stack recorded in a design-scheme.css, if it has one. */
+export const fontIn = (css: string): string | undefined => /--nocco-font:\s*([^;]+);/.exec(css)?.[1]?.trim();
+
+/**
+ * The contents of design-scheme.css for a palette, with the app's font stack
+ * when it has one. Status colours are fixed.
+ */
+export function paletteCss(palette: Palette, font?: string): string {
+  return `/* Written by Nocco when a colour scheme is picked. */
 :root {
   --nocco-primary: ${palette.primary};
   --nocco-bg: ${palette.bg};
@@ -35,7 +50,7 @@ export function paletteCss(palette: Palette): string {
   --nocco-border: ${palette.border};
   --nocco-success: #10b981;
   --nocco-warning: #f59e0b;
-  --nocco-error: #ef4444;
+  --nocco-error: #ef4444;${font ? `\n  --nocco-font: ${font};` : ''}
 }
 `;
 }

@@ -6,6 +6,8 @@ import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 
 const locale = useIsChinese() ? zhCN : enUS;
 const primary = ref('#9E7FFF');
+// Empty until the app is given a font; Ant Design then keeps its own.
+const fontFamily = ref('');
 const isDark = ref(false);
 
 const luminance = (hex: string): number => {
@@ -21,6 +23,7 @@ const readPalette = () => {
   const style = getComputedStyle(document.documentElement);
   const p = style.getPropertyValue('--nocco-primary').trim();
   if (p) primary.value = p;
+  fontFamily.value = style.getPropertyValue('--nocco-font').trim();
   const bg = style.getPropertyValue('--nocco-bg').trim() || '#ffffff';
   if (/^#[0-9a-fA-F]{3,8}$/.test(bg)) isDark.value = luminance(bg) < 0.5;
 };
@@ -40,6 +43,7 @@ const themeConfig = computed(() => ({
   token: {
     colorPrimary: primary.value,
     borderRadius: 8,
+    ...(fontFamily.value ? { fontFamily: fontFamily.value } : {}),
   },
 }));
 </script>
@@ -59,6 +63,6 @@ body {
   padding: 0;
   background: var(--nocco-bg, #ffffff);
   color: var(--nocco-text, #171717);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-family: var(--nocco-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif);
 }
 </style>

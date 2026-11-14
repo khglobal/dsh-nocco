@@ -10,7 +10,11 @@ First release.
   applies the database schema whenever it changes.
 - Nocco home page in the Nocco web app's look, light and dark, with
   model-generated build suggestions, prompt enhancement, a colour scheme
-  picker, and Build that sends the request straight to the agent.
+  picker with typography and style options, file attach, a Discuss / Build
+  toggle, and Build that sends the request straight to the agent.
+- `nocco_scaffold` returns a guide to the template, and `nocco_preview`
+  status reports runtime errors from pages open in the preview, so the agent
+  neither re-reads the template nor drives a browser to check its work.
 - Preview tab with device widths, reload, a palette picker and a History
   timeline of checkpoints with restore.
 - `nocco_import` reads Excel, CSV, TSV, Word, Markdown and text files; table
