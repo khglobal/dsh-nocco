@@ -3,10 +3,12 @@ import type {} from '@deepseek-ai/dsh-skill';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { readFileSync } from 'node:fs';
 import { createCheckpoints, type Checkpoint } from './checkpoints.js';
-import { registerHomeApi } from './home-api.js';
+import { registerHomeApi, trackServices } from './home-api.js';
 import { importFile } from './import.js';
+import { authorize, command, type Access, type Caller, type PermissionHost } from './permissions.js';
 import { createPreviewManager } from './preview.js';
-import { DESIGN_SYSTEMS, scaffold, type DesignSystem } from './scaffold.js';
+import { spawn } from 'node:child_process';
+import { DESIGN_SYSTEMS, scaffold, type DesignSystem, type Runner } from './scaffold.js';
 import { schemaSync } from './schema-sync.js';
 
 export const name = 'dsh-nocco';
@@ -28,9 +30,40 @@ async function browserErrors(url: string | undefined): Promise<{ message: string
   } catch { return []; }
 }
 
+/** Runs a program to its end through an access and collects what it printed. */
+const runner = (access: Access): Runner => async (file, args, cwd) => {
+  const program = await command(access, file, args);
+  return new Promise((done) => {
+    const child = spawn(program.file, program.args, { cwd, shell: program.shell, env: program.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = '';
+    child.stdout?.on('data', (chunk: Buffer) => { output += chunk.toString('utf8'); });
+    child.stderr?.on('data', (chunk: Buffer) => { output += chunk.toString('utf8'); });
+    child.once('error', (error) => done({ status: null, output: `${output}${String(error)}` }));
+    child.once('close', (status) => done({ status, output }));
+  });
+};
+
+const PURPOSE = {
+  scaffold: { en: 'create an app and install its dependencies', zh: '创建应用并安装依赖' },
+  preview: { en: 'run an app\'s dev server', zh: '运行应用的开发服务器' },
+  checkpoint: { en: 'save or restore an app\'s checkpoints', zh: '保存或恢复应用的检查点' },
+  import: { en: 'save imported rows into an app', zh: '把导入的数据保存到应用中' },
+} as const;
+
 export function apply(ctx: Context): void {
   const previews = createPreviewManager({ sync: schemaSync });
   const checkpoints = createCheckpoints();
+  // The host's permission services are read at each call: a session's policy can change between calls.
+  const get = trackServices(ctx, ['sandboxPolicy', 'sandbox', 'approval']);
+  const permit = (toolName: string, exec: unknown, directory: string, purpose: { en: string; zh: string }): Promise<Access> => {
+    const call = (exec ?? {}) as Omit<Caller, 'toolName'>;
+    const host: PermissionHost = {
+      policy: get('sandboxPolicy') as PermissionHost['policy'],
+      sandbox: get('sandbox') as PermissionHost['sandbox'],
+      approval: get('approval') as PermissionHost['approval'],
+    };
+    return authorize(host, { toolName, agent: call.agent, callId: call.callId, signal: call.signal }, directory, purpose);
+  };
 
   ctx.skills.register({
     name: 'nocco',
@@ -42,7 +75,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'nocco_scaffold',
-    description: 'Create a new web system from a Nocco template in an empty directory and install its dependencies. The app comes with sign-in, roles and a SQLite database; sign-in can be switched off for an app anyone may open. Returns the admin account for the first sign-in. Fails if the directory is not empty.',
+    description: 'Create a new web system from a Nocco template in an empty directory and install its dependencies. The app comes with sign-in, roles and a SQLite database; sign-in can be switched off for an app anyone may open. Returns the admin account for the first sign-in. Fails if the directory is not empty. The directory must be where this session may write; anywhere else the user is asked to approve first.',
     parameters: {
       directory: { type: 'string', required: true, description: 'Absolute path of the directory to create the app in' },
       appName: { type: 'string', required: true, description: 'Name shown in the page title' },
@@ -53,7 +86,8 @@ export function apply(ctx: Context): void {
       signIn: { type: 'string', description: 'required (the default): every page and server route needs a signed-in user. off: the app opens straight to its first page for anyone' },
     },
     output: json,
-    async execute(args) {
+    async execute(args, exec) {
+      const access = await permit('nocco_scaffold', exec, args.directory, PURPOSE.scaffold);
       const created = await scaffold({
         directory: args.directory,
         appName: args.appName,
@@ -62,9 +96,9 @@ export function apply(ctx: Context): void {
         palette: args.palette,
         font: args.font,
         signIn: args.signIn !== 'off',
-      });
+      }, { run: runner(access) });
       // The untouched template is the first point the user can return to.
-      await checkpoints.save(created.directory, args.appName).catch(() => undefined);
+      await checkpoints.save(created.directory, args.appName, access).catch(() => undefined);
       // The map of what the template provides saves the agent reading it file by file.
       const guide = ['common', created.designSystem]
         .map((part) => readFileSync(new URL(`../resources/guide/${part}.md`, import.meta.url), 'utf8')).join('');
@@ -80,8 +114,11 @@ export function apply(ctx: Context): void {
       directory: { type: 'string', required: true, description: 'Absolute path of the app directory' },
     },
     output: json,
-    async execute(args) {
-      if (args.action === 'start') return { ...(await previews.start(args.directory)) };
+    async execute(args, exec) {
+      if (args.action === 'start') {
+        const access = await permit('nocco_preview', exec, args.directory, PURPOSE.preview);
+        return { ...(await previews.start(args.directory, access)) };
+      }
       if (args.action === 'stop') return { ...(await previews.stop(args.directory)) };
       if (args.action === 'status') {
         const status = previews.status(args.directory);
@@ -101,12 +138,13 @@ export function apply(ctx: Context): void {
       id: { type: 'string', description: 'For restore: the id of a checkpoint from list' },
     },
     output: json,
-    async execute(args) {
+    async execute(args, exec) {
+      if (!['save', 'list', 'restore'].includes(args.action)) throw new Error('action must be save, list or restore');
+      const access = await permit('nocco_checkpoint', exec, args.directory, PURPOSE.checkpoint);
       let outcome: { saved: Checkpoint | null } | { checkpoints: Checkpoint[] } | { restored: Checkpoint };
-      if (args.action === 'save') outcome = { saved: (await checkpoints.save(args.directory, args.label)) ?? null };
-      else if (args.action === 'list') outcome = { checkpoints: await checkpoints.list(args.directory) };
-      else if (args.action === 'restore') outcome = { restored: await checkpoints.restore(args.directory, String(args.id ?? '')) };
-      else throw new Error('action must be save, list or restore');
+      if (args.action === 'save') outcome = { saved: (await checkpoints.save(args.directory, args.label, access)) ?? null };
+      else if (args.action === 'list') outcome = { checkpoints: await checkpoints.list(args.directory, access) };
+      else outcome = { restored: await checkpoints.restore(args.directory, String(args.id ?? ''), access) };
       return outcome;
     },
   }));
@@ -119,8 +157,11 @@ export function apply(ctx: Context): void {
       directory: { type: 'string', description: 'Absolute path of the app that will hold the rows of a table file' },
     },
     output: json,
-    async execute(args) {
-      return { ...(await importFile({ file: args.file, directory: args.directory || undefined })) };
+    async execute(args, exec) {
+      const directory = args.directory || undefined;
+      // Reading follows the host, which lets a session read any file; only the rows written into an app need permission.
+      const access = directory ? await permit('nocco_import', exec, directory, PURPOSE.import) : undefined;
+      return { ...(await importFile({ file: args.file, directory, inside: access?.inside })) };
     },
   }));
 
@@ -130,7 +171,7 @@ export function apply(ctx: Context): void {
   const events = ctx as unknown as { on(name: string, listener: (payload: { status?: string }) => void): unknown };
   events.on('agent/status', (payload) => {
     if (payload?.status !== 'idle') return;
-    for (const preview of previews.list()) void checkpoints.save(preview.directory).catch(() => undefined);
+    for (const preview of previews.list()) void checkpoints.save(preview.directory, undefined, preview.access).catch(() => undefined);
   });
 
   // Registrations are released with the plugin's fiber; the dev servers are

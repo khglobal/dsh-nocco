@@ -102,7 +102,7 @@ async function readDocument(file: string, type: string): Promise<string> {
  * it, so the rows reach the database without passing through the model. A
  * document (Word, Markdown, text) is returned as text.
  */
-export async function importFile(options: { file: string; directory?: string }): Promise<ImportResult> {
+export async function importFile(options: { file: string; directory?: string; inside?: (path: string) => Promise<void> }): Promise<ImportResult> {
   const { file, directory } = options;
   if (!isAbsolute(file)) throw new Error('file must be an absolute path');
   if (directory !== undefined && !isAbsolute(directory)) throw new Error('directory must be an absolute path');
@@ -121,6 +121,8 @@ export async function importFile(options: { file: string; directory?: string }):
   const summaries = tables.map(({ rows: _rows, ...summary }) => summary);
   if (!directory) return { kind: 'tables', source, tables: summaries };
   const folder = join(directory, IMPORT_FOLDER);
+  // The folder may be a link that leads out of the app; the caller decides where rows may be written.
+  await options.inside?.(folder);
   await mkdir(folder, { recursive: true });
   const dataFile = join(folder, `${slug(basename(file, type))}.json`);
   await writeFile(dataFile, JSON.stringify({ source, tables: tables.map(({ name, rows }) => ({ name, rows })) }, null, 1));

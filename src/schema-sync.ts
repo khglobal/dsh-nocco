@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
+import { command, OPEN, type Access } from './permissions.js';
 import type { PreviewSync } from './preview.js';
 
 /** The file whose changes mean the database tables must be brought up to date. */
@@ -12,14 +13,12 @@ const ANSI = /\u001b\[[0-9;?]*[A-Za-z]/g;
  * outcome as preview output lines. A failure is reported, never thrown: the
  * dev server should keep running so the model can read the error and fix it.
  */
-export function pushSchema(directory: string): Promise<string[]> {
+export async function pushSchema(directory: string, access: Access = OPEN): Promise<string[]> {
+  const file = join(directory, 'node_modules', '.bin', process.platform === 'win32' ? 'drizzle-kit.cmd' : 'drizzle-kit');
+  let tool: Awaited<ReturnType<typeof command>>;
+  try { tool = await command(access, file, ['push', '--force']); } catch (error) { return [`[schema] could not run drizzle-kit: ${String(error)}`]; }
   return new Promise((done) => {
-    const file = join(directory, 'node_modules', '.bin', process.platform === 'win32' ? 'drizzle-kit.cmd' : 'drizzle-kit');
-    const child = spawn(file, ['push', '--force'], {
-      cwd: directory,
-      shell: process.platform === 'win32',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const child = spawn(tool.file, tool.args, { cwd: directory, shell: tool.shell, env: tool.env, stdio: ['ignore', 'pipe', 'pipe'] });
     let text = '';
     child.stdout?.on('data', (chunk: Buffer) => { text += chunk.toString('utf8'); });
     child.stderr?.on('data', (chunk: Buffer) => { text += chunk.toString('utf8'); });

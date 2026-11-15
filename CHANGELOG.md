@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.6
+
+- The tools now work within the calling session's permissions. Files are
+  written only where the session may write, with links judged by where they
+  lead.
+- Dependency installs, the dev server, the schema step and checkpoints run
+  inside DSH's process sandbox.
+- Anything outside those limits asks for approval in DSH for that one call;
+  when approval is refused or unavailable, nothing is written or started.
+
 ## 0.1.5
 
 - Plainer description on the plugin card and in the package.

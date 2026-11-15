@@ -2,6 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { watch, type FSWatcher } from 'node:fs';
 import { createServer } from 'node:net';
 import { basename, dirname, join, resolve } from 'node:path';
+import { command as launchable, OPEN, type Access } from './permissions.js';
 
 export interface PreviewState {
   running: boolean;
@@ -10,12 +11,13 @@ export interface PreviewState {
 }
 
 export interface PreviewManager {
-  start(directory: string): Promise<PreviewState>;
+  /** Start the app's dev server, or return the one already running. The server and its sync work run through the given access. */
+  start(directory: string, access?: Access): Promise<PreviewState>;
   status(directory: string): PreviewState;
   stop(directory: string): Promise<PreviewState>;
   stopAll(): Promise<void>;
   /** The apps being served right now. */
-  list(): { directory: string; url: string }[];
+  list(): { directory: string; url: string; access: Access }[];
 }
 
 /**
@@ -26,12 +28,14 @@ export interface PreviewSync {
   /** Path of the watched file, relative to the app directory. */
   file: string;
   /** Does the work and returns lines to show in the preview output. */
-  run(directory: string): Promise<string[]>;
+  run(directory: string, access: Access): Promise<string[]>;
 }
 
 interface Entry {
   child: ChildProcess;
   url: string;
+  /** What the call that started the server was allowed; later work on the app keeps to it. */
+  access: Access;
   /** Results of the latest sync run; kept apart so server logs cannot push them out. */
   notes: string[];
   output: string[];
@@ -104,9 +108,9 @@ export function createPreviewManager(options: {
     entry.output.push(...lines.filter((line) => line.trim() && !isNoise(line)));
     entry.output.splice(0, Math.max(0, entry.output.length - OUTPUT_LINES));
   };
-  const runSync = async (directory: string): Promise<string[]> => {
+  const runSync = async (directory: string, access: Access): Promise<string[]> => {
     if (!sync) return [];
-    try { return await sync.run(directory); } catch (error) { return [`[sync] ${String(error)}`]; }
+    try { return await sync.run(directory, access); } catch (error) { return [`[sync] ${String(error)}`]; }
   };
 
   // Dev servers run in their own process groups, so they would outlive the
@@ -126,22 +130,24 @@ export function createPreviewManager(options: {
       entry.watcher = watch(dirname(target), (_event, name) => {
         if (name !== basename(target) || entry.exited) return;
         clearTimeout(timer);
-        timer = setTimeout(() => { void runSync(directory).then((lines) => { entry.notes = lines; }); }, SYNC_DEBOUNCE_MS);
+        timer = setTimeout(() => { void runSync(directory, entry.access).then((lines) => { entry.notes = lines; }); }, SYNC_DEBOUNCE_MS);
       });
       entry.watcher.on('error', () => {});
     } catch { /* the folder does not exist yet: nothing to watch */ }
   }
 
-  async function launch(directory: string, preface: readonly string[]): Promise<Entry> {
+  async function launch(directory: string, preface: readonly string[], access: Access): Promise<Entry> {
     const port = await freePort();
-    const { file, args } = command(directory, port);
+    const wanted = command(directory, port);
+    const { file, args, shell, env } = await launchable(access, wanted.file, wanted.args);
     const child = spawn(file, args, {
       cwd: directory,
       detached: process.platform !== 'win32',
-      shell: process.platform === 'win32',
+      shell,
+      env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    const entry: Entry = { child, url: `http://127.0.0.1:${port}/`, notes: [...preface], output: [], exited: false };
+    const entry: Entry = { child, access, url: `http://127.0.0.1:${port}/`, notes: [...preface], output: [], exited: false };
     const collect = (chunk: Buffer): void => append(entry, chunk.toString('utf8').split('\n').map((line) => line.trimEnd()));
     child.stdout?.on('data', collect);
     child.stderr?.on('data', collect);
@@ -153,15 +159,15 @@ export function createPreviewManager(options: {
   }
 
   return {
-    async start(input) {
+    async start(input, access = OPEN) {
       const directory = resolve(input);
       const current = entries.get(directory);
       if (current && !current.exited) return snapshot(current);
 
-      const preface = await runSync(directory);
+      const preface = await runSync(directory, access);
       let last: Entry | undefined;
       for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
-        const entry = await launch(directory, preface);
+        const entry = await launch(directory, preface, access);
         last = entry;
         const deadline = Date.now() + readyTimeoutMs;
         while (!entry.exited && Date.now() < deadline) {
@@ -200,7 +206,7 @@ export function createPreviewManager(options: {
     },
 
     list() {
-      return [...entries].flatMap(([directory, entry]) => (entry.exited ? [] : [{ directory, url: entry.url }]));
+      return [...entries].flatMap(([directory, entry]) => (entry.exited ? [] : [{ directory, url: entry.url, access: entry.access }]));
     },
 
     async stopAll() {

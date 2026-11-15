@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { copyFile, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
+import { command, OPEN, type Access } from './permissions.js';
 
 /** Where an app's checkpoints are kept, relative to the app. */
 export const CHECKPOINT_STORE = join('.nocco', 'checkpoints.git');
@@ -29,21 +30,23 @@ export type Checkpoint = {
 
 export interface Checkpoints {
   /** Record the app as it is now. Returns nothing when it has not changed since the last checkpoint. */
-  save(directory: string, label?: string): Promise<Checkpoint | undefined>;
+  save(directory: string, label?: string, access?: Access): Promise<Checkpoint | undefined>;
   /** Checkpoints of the app, newest first. */
-  list(directory: string): Promise<Checkpoint[]>;
+  list(directory: string, access?: Access): Promise<Checkpoint[]>;
   /** Put the app's files back as they were at a checkpoint; the state before is recorded first. */
-  restore(directory: string, id: string): Promise<Checkpoint>;
+  restore(directory: string, id: string, access?: Access): Promise<Checkpoint>;
 }
 
-function run(directory: string, args: readonly string[]): Promise<string> {
+async function run(directory: string, args: readonly string[], access: Access): Promise<string> {
   const base = [
     '--git-dir', join(directory, CHECKPOINT_STORE), '--work-tree', directory,
     '-c', 'user.name=Nocco', '-c', 'user.email=nocco@localhost',
     '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', '-c', 'core.autocrlf=false', '-c', 'core.quotepath=false',
   ];
+  // git reads settings from the store, which lives in the app, so it runs under the same limits as the app's own code.
+  const git = await command(access, 'git', [...base, ...args]);
   return new Promise((resolve, reject) => {
-    execFile('git', [...base, ...args], { cwd: directory, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } },
+    execFile(git.file, git.args, { cwd: directory, maxBuffer: 16 * 1024 * 1024, env: { ...git.env, GIT_TERMINAL_PROMPT: '0' } },
       (error, stdout, stderr) => {
         if (!error) return resolve(stdout);
         const missing = (error as NodeJS.ErrnoException).code === 'ENOENT';
@@ -52,18 +55,20 @@ function run(directory: string, args: readonly string[]): Promise<string> {
   });
 }
 
-const succeeds = (directory: string, args: readonly string[]): Promise<boolean> => run(directory, args).then(() => true, () => false);
+const succeeds = (directory: string, args: readonly string[], access: Access): Promise<boolean> => run(directory, args, access).then(() => true, () => false);
 
-async function ensureStore(directory: string): Promise<void> {
-  if (await succeeds(directory, ['rev-parse', '--git-dir'])) return;
+async function ensureStore(directory: string, access: Access): Promise<void> {
+  await access.inside(join(directory, CHECKPOINT_STORE));
+  if (await succeeds(directory, ['rev-parse', '--git-dir'], access)) return;
   await mkdir(join(directory, '.nocco'), { recursive: true });
-  await run(directory, ['init', '--quiet']);
+  await run(directory, ['init', '--quiet'], access);
   await writeFile(join(directory, CHECKPOINT_STORE, 'info', 'exclude'), `${EXCLUDED.join('\n')}\n`);
 }
 
 /** Copy the app's database aside, keeping only the most recent copies. */
-async function backUpDatabase(directory: string): Promise<void> {
+async function backUpDatabase(directory: string, access: Access): Promise<void> {
   const folder = join(directory, BACKUP_FOLDER);
+  await access.inside(folder);
   await mkdir(folder, { recursive: true });
   try {
     await copyFile(join(directory, 'sqlite.db'), join(folder, `sqlite-${new Date().toISOString().replace(/[:.]/g, '-')}.db`));
@@ -95,37 +100,37 @@ export function createCheckpoints(): Checkpoints {
     return next;
   }
 
-  const read = async (directory: string, limit: number): Promise<Checkpoint[]> =>
-    (await succeeds(directory, ['rev-parse', '--verify', '--quiet', 'HEAD']))
-      ? parseLog(await run(directory, ['log', `-n${limit}`, '--format=%x1e%H%x1f%ct%x1f%s', '--shortstat']))
+  const read = async (directory: string, limit: number, access: Access): Promise<Checkpoint[]> =>
+    (await succeeds(directory, ['rev-parse', '--verify', '--quiet', 'HEAD'], access))
+      ? parseLog(await run(directory, ['log', `-n${limit}`, '--format=%x1e%H%x1f%ct%x1f%s', '--shortstat'], access))
       : [];
 
-  async function save(directory: string, label?: string): Promise<Checkpoint | undefined> {
-    await ensureStore(directory);
-    await run(directory, ['add', '--all']);
-    const hasHead = await succeeds(directory, ['rev-parse', '--verify', '--quiet', 'HEAD']);
-    if (hasHead && await succeeds(directory, ['diff', '--cached', '--quiet'])) return undefined;
-    const changed = (await run(directory, hasHead ? ['diff', '--cached', '--name-only'] : ['ls-files'])).split('\n').filter(Boolean);
+  async function save(directory: string, label: string | undefined, access: Access): Promise<Checkpoint | undefined> {
+    await ensureStore(directory, access);
+    await run(directory, ['add', '--all'], access);
+    const hasHead = await succeeds(directory, ['rev-parse', '--verify', '--quiet', 'HEAD'], access);
+    if (hasHead && await succeeds(directory, ['diff', '--cached', '--quiet'], access)) return undefined;
+    const changed = (await run(directory, hasHead ? ['diff', '--cached', '--name-only'] : ['ls-files'], access)).split('\n').filter(Boolean);
     // Without a label, name the checkpoint by what changed.
     const fallback = changed.length > 1 ? `${changed[0]} +${changed.length - 1}` : (changed[0] ?? '-');
     const subject = (label ?? '').replace(/\s+/g, ' ').trim().slice(0, 120) || fallback;
-    await run(directory, ['commit', '--quiet', '--allow-empty', '-m', subject]);
-    const [saved] = await read(directory, 1);
+    await run(directory, ['commit', '--quiet', '--allow-empty', '-m', subject], access);
+    const [saved] = await read(directory, 1, access);
     return saved && { ...saved, filesChanged: saved.filesChanged || changed.length };
   }
 
   return {
-    save: (directory, label) => queued(directory, () => save(directory, label)),
-    list: (directory) => queued(directory, () => read(directory, LIST_LIMIT)),
-    restore: (directory, id) => queued(directory, async () => {
-      const target = (await read(directory, LIST_LIMIT)).find((checkpoint) => checkpoint.id === id);
+    save: (directory, label, access = OPEN) => queued(directory, () => save(directory, label, access)),
+    list: (directory, access = OPEN) => queued(directory, () => read(directory, LIST_LIMIT, access)),
+    restore: (directory, id, access = OPEN) => queued(directory, async () => {
+      const target = (await read(directory, LIST_LIMIT, access)).find((checkpoint) => checkpoint.id === id);
       if (!target) throw new Error('no checkpoint of this app has that id');
       // Record unsaved work first, so a restore can itself be undone.
-      await save(directory);
-      await backUpDatabase(directory);
-      await run(directory, ['read-tree', '--reset', '-u', target.id]);
-      await run(directory, ['commit', '--quiet', '--allow-empty', '-m', `↩ ${target.label}`.slice(0, 120)]);
-      const [restored] = await read(directory, 1);
+      await save(directory, undefined, access);
+      await backUpDatabase(directory, access);
+      await run(directory, ['read-tree', '--reset', '-u', target.id], access);
+      await run(directory, ['commit', '--quiet', '--allow-empty', '-m', `↩ ${target.label}`.slice(0, 120)], access);
+      const [restored] = await read(directory, 1, access);
       return restored!;
     }),
   };

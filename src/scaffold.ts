@@ -5,7 +5,9 @@ import { isAbsolute, join } from 'node:path';
 import { FONT_STACKS, paletteCss, readPalette, resolvePalette } from './palette.js';
 import { fileURLToPath } from 'node:url';
 
-export type Runner = (file: string, args: string[], cwd: string) => { status: number | null; output: string };
+type RunResult = { status: number | null; output: string };
+/** Runs a program in the app directory and reports how it ended. */
+export type Runner = (file: string, args: string[], cwd: string) => RunResult | Promise<RunResult>;
 
 /** The design systems an app can be built on; each is one template directory. */
 export const DESIGN_SYSTEMS = ['antdv', 'shadcn', 'vant', 'retro'] as const;
@@ -109,10 +111,13 @@ export async function scaffold(
   );
 
   const base = { directory, designSystem, admin, signIn: input.signIn === false ? 'off' as const : 'required' as const };
-  const packageManager = (['pnpm', 'npm'] as const).find((name) => run(name, ['--version'], directory).status === 0) ?? null;
+  let packageManager: 'pnpm' | 'npm' | null = null;
+  for (const name of ['pnpm', 'npm'] as const) {
+    if ((await run(name, ['--version'], directory)).status === 0) { packageManager = name; break; }
+  }
   if (!packageManager) {
     return { ...base, packageManager, installed: false, installOutput: 'pnpm or npm was not found on this machine; install one and run its install command in the app directory.' };
   }
-  const install = run(packageManager, ['install'], directory);
+  const install = await run(packageManager, ['install'], directory);
   return { ...base, packageManager, installed: install.status === 0, installOutput: install.output.slice(-4000) };
 }

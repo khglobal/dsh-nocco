@@ -232,10 +232,10 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoi
     }
   };
   // Pages name an app by the address of its running preview, never by a path.
-  const served = (url: unknown): string => {
+  const served = (url: unknown): ReturnType<PreviewManager['list']>[number] => {
     const preview = previews.list().find((item) => item.url === url);
     if (!preview) throw new Error('no running preview has that address');
-    return preview.directory;
+    return preview;
   };
   const host = ctx as unknown as {
     inject(deps: readonly string[], callback: (inner: { get(name: string): unknown; effect(setup: () => () => void): unknown }) => void): unknown;
@@ -281,13 +281,15 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoi
       }),
       connection.fetch.register({
         path: '/api/nocco.previews', methods: ['POST'], requestBody: 'buffered',
-        fetch: handle(async () => ({ previews: previews.list() })),
+        fetch: handle(async () => ({ previews: previews.list().map(({ directory, url }) => ({ directory, url })) })),
       }),
       connection.fetch.register({
         path: '/api/nocco.palette', methods: ['POST'], requestBody: 'buffered',
         fetch: handle(async (body) => {
           // Only an app this plugin is serving can be recoloured, and only with validated colours.
-          const file = join(served(body.url), 'assets', 'css', 'design-scheme.css');
+          const app = served(body.url);
+          const file = join(app.directory, 'assets', 'css', 'design-scheme.css');
+          await app.access.inside(file);
           // Recolouring keeps the font the app was created with.
           const font = fontIn(await readFile(file, 'utf8').catch(() => ''));
           await writeFile(file, paletteCss(readPalette(body.palette), font));
@@ -297,11 +299,12 @@ export function registerHomeApi(ctx: Context, previews: PreviewManager, checkpoi
       connection.fetch.register({
         path: '/api/nocco.checkpoints', methods: ['POST'], requestBody: 'buffered',
         fetch: handle(async (body) => {
-          const directory = served(body.url);
-          if (body.action === 'save') await checkpoints.save(directory, typeof body.label === 'string' ? body.label : undefined);
-          else if (body.action === 'restore') await checkpoints.restore(directory, String(body.id ?? ''));
+          // The page acts on a running preview, within what the call that started it was allowed.
+          const { directory, access } = served(body.url);
+          if (body.action === 'save') await checkpoints.save(directory, typeof body.label === 'string' ? body.label : undefined, access);
+          else if (body.action === 'restore') await checkpoints.restore(directory, String(body.id ?? ''), access);
           else if (body.action !== 'list') throw new Error('action must be list, save or restore');
-          return { checkpoints: await checkpoints.list(directory) };
+          return { checkpoints: await checkpoints.list(directory, access) };
         }),
       }),
     ];
