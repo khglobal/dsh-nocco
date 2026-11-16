@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+[![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/khglobal/dsh-nocco)
+
 Nocco turns DeepSeek Harness into a workbench for building web applications.
 Describe the system you want; the agent builds it on your machine with the
 model you choose, and you watch it, steer it and undo it from one place. No

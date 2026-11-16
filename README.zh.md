@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+[![Listed on dsh-plugin.org](https://dsh-plugin.org/badges/listed.svg)](https://dsh-plugin.org/plugins/khglobal/dsh-nocco)
+
 Nocco 把 DeepSeek Harness 变成一个构建网页应用的工作台。说出你想要的系统，Agent
 就用你选的模型在你自己的电脑上把它做出来；预览、调整、撤销都在同一个界面里完成。
 不需要账号，没有服务器，除了你自己的模型用量之外没有额外费用。
