@@ -1,0 +1,184 @@
+import { spawn, spawnSync } from 'node:child_process';
+import { watch } from 'node:fs';
+import { createServer } from 'node:net';
+import { basename, dirname, join, resolve } from 'node:path';
+import { command as launchable, OPEN } from './permissions.js';
+const OUTPUT_LINES = 60;
+const ATTEMPTS = 3;
+const SYNC_DEBOUNCE_MS = 400;
+// shadcn-nuxt registers each component from both its folder's index file and
+// its .vue file, and Nuxt prints warnings for every one on every start. They
+// are harmless and would otherwise fill the whole output window.
+const NOISE = [
+    /WARN\s+Overriding \S+ component\./,
+    /WARN\s+Two component files resolving to the same name/,
+    /^\s*-\s+\S*[\\/]components[\\/]ui[\\/]\S+$/,
+];
+const isNoise = (line) => NOISE.some((pattern) => pattern.test(line));
+const nuxtCommand = (directory, port) => ({
+    file: join(directory, 'node_modules', '.bin', process.platform === 'win32' ? 'nuxi.cmd' : 'nuxi'),
+    args: ['dev', '--host', '127.0.0.1', '--port', String(port)],
+});
+function freePort() {
+    return new Promise((done, fail) => {
+        const server = createServer();
+        server.once('error', fail);
+        server.listen(0, '127.0.0.1', () => {
+            const address = server.address();
+            const port = typeof address === 'object' && address ? address.port : 0;
+            server.close(() => done(port));
+        });
+    });
+}
+function kill(child) {
+    if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null)
+        return;
+    if (process.platform === 'win32') {
+        spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F']);
+        return;
+    }
+    // The child leads its own process group, so this also ends its children.
+    try {
+        process.kill(-child.pid, 'SIGTERM');
+    }
+    catch {
+        child.kill('SIGTERM');
+    }
+}
+async function answers(url) {
+    try {
+        await fetch(url, { signal: AbortSignal.timeout(2000) });
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+/** One dev server per app directory, bound to loopback. */
+export function createPreviewManager(options = {}) {
+    const command = options.command ?? nuxtCommand;
+    const readyTimeoutMs = options.readyTimeoutMs ?? 60000;
+    const sync = options.sync;
+    const entries = new Map();
+    const snapshot = (entry) => entry && !entry.exited
+        ? { running: true, url: entry.url, output: [...entry.notes, ...entry.output] }
+        : { running: false, output: entry ? [...entry.notes, ...entry.output] : [] };
+    // Resolves once the process has ended and its output has been collected.
+    const closed = (entry) => entry.exited ? Promise.resolve() : new Promise((done) => entry.child.once('close', () => done()));
+    const append = (entry, lines) => {
+        entry.output.push(...lines.filter((line) => line.trim() && !isNoise(line)));
+        entry.output.splice(0, Math.max(0, entry.output.length - OUTPUT_LINES));
+    };
+    const runSync = async (directory, access) => {
+        if (!sync)
+            return [];
+        try {
+            return await sync.run(directory, access);
+        }
+        catch (error) {
+            return [`[sync] ${String(error)}`];
+        }
+    };
+    // Dev servers run in their own process groups, so they would outlive the
+    // host if it exits without disposing the plugin. End them on the way out.
+    process.once('exit', () => {
+        for (const entry of entries.values())
+            kill(entry.child);
+    });
+    /** Re-run the sync work whenever the watched file settles after a change. */
+    function watchSync(directory, entry) {
+        if (!sync)
+            return;
+        const target = join(directory, sync.file);
+        let timer;
+        try {
+            // Watch the folder, not the file: editors replace files on save, which
+            // ends a watch placed on the file itself.
+            entry.watcher = watch(dirname(target), (_event, name) => {
+                if (name !== basename(target) || entry.exited)
+                    return;
+                clearTimeout(timer);
+                timer = setTimeout(() => { void runSync(directory, entry.access).then((lines) => { entry.notes = lines; }); }, SYNC_DEBOUNCE_MS);
+            });
+            entry.watcher.on('error', () => { });
+        }
+        catch { /* the folder does not exist yet: nothing to watch */ }
+    }
+    async function launch(directory, preface, access) {
+        const port = await freePort();
+        const wanted = command(directory, port);
+        const { file, args, shell, env } = await launchable(access, wanted.file, wanted.args);
+        const child = spawn(file, args, {
+            cwd: directory,
+            detached: process.platform !== 'win32',
+            shell,
+            env,
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        const entry = { child, access, url: `http://127.0.0.1:${port}/`, notes: [...preface], output: [], exited: false };
+        const collect = (chunk) => append(entry, chunk.toString('utf8').split('\n').map((line) => line.trimEnd()));
+        child.stdout?.on('data', collect);
+        child.stderr?.on('data', collect);
+        child.once('error', (error) => { entry.output.push(String(error)); entry.exited = true; });
+        // 'close' fires after the output streams end, so the captured output is
+        // complete by the time an early exit is reported.
+        child.once('close', () => { entry.exited = true; entry.watcher?.close(); });
+        return entry;
+    }
+    return {
+        async start(input, access = OPEN) {
+            const directory = resolve(input);
+            const current = entries.get(directory);
+            if (current && !current.exited)
+                return snapshot(current);
+            const preface = await runSync(directory, access);
+            let last;
+            for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+                const entry = await launch(directory, preface, access);
+                last = entry;
+                const deadline = Date.now() + readyTimeoutMs;
+                while (!entry.exited && Date.now() < deadline) {
+                    if (await answers(entry.url)) {
+                        entries.set(directory, entry);
+                        watchSync(directory, entry);
+                        return snapshot(entry);
+                    }
+                    await new Promise((wait) => setTimeout(wait, 150));
+                }
+                if (!entry.exited) {
+                    kill(entry.child);
+                    await closed(entry);
+                    entries.set(directory, entry);
+                    throw new Error(`dev server did not start within ${readyTimeoutMs} ms\n${entry.output.join('\n')}`);
+                }
+                // Exited before answering. A lost port race is worth one more try on a
+                // new port; any other exit is a real failure.
+                if (!entry.output.some((line) => /EADDRINUSE|already in use/i.test(line)))
+                    break;
+            }
+            if (last)
+                entries.set(directory, last);
+            throw new Error(`dev server exited before it was ready\n${last?.output.join('\n') ?? ''}`);
+        },
+        status(input) {
+            return snapshot(entries.get(resolve(input)));
+        },
+        async stop(input) {
+            const entry = entries.get(resolve(input));
+            if (entry && !entry.exited) {
+                kill(entry.child);
+                await closed(entry);
+            }
+            return snapshot(entry);
+        },
+        list() {
+            return [...entries].flatMap(([directory, entry]) => (entry.exited ? [] : [{ directory, url: entry.url, access: entry.access }]));
+        },
+        async stopAll() {
+            const running = [...entries.values()].filter((entry) => !entry.exited);
+            for (const entry of running)
+                kill(entry.child);
+            await Promise.all(running.map((entry) => closed(entry)));
+        },
+    };
+}

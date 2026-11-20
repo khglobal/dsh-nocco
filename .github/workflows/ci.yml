@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # dist/ is committed so `dsh plugin add github:khglobal/dsh-nocco` loads
+      # without a build step (git installs do not run `build`). The build above
+      # rewrites dist/ from source; any difference means dist/ is stale.
+      - name: Committed dist matches the source
+        run: |
+          git add -N dist
+          if ! git diff --exit-code --stat -- dist; then
+            echo "::error::dist/ is out of date. Run 'npm run build' and commit dist/."
+            exit 1
+          fi
