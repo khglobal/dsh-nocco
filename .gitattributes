@@ -1,0 +1,2 @@
+# Build output, committed so `github:` installs load without a build step.
+dist/** linguist-generated=true
